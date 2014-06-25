@@ -4,12 +4,19 @@ function setBadge(count) {
 	}*/
 }
 
-function showNotification(text) {
-	
+function showNotification(text, id) {
+
 	window.plugin.notification.local.add({ 
-		message 	: '"'+text+'"',
-		sound 		: 'TYPE_NOTIFICATION',
-		title 		: 'New message received',
-		autoCancel 	: true
+		id 			: id, 						//unique id of the notification
+		message 	: '"'+text+'"',				//the message that is displayed
+		sound 		: 'TYPE_NOTIFICATION', 		//a sound to be played
+		title 		: 'New message received', 	//the title of the message
+		autoCancel 	: true						//Setting this flag and the notification is automatically canceled when the user clicks it
+	});
+}
+
+function removeNotification(ID) {
+	window.plugin.notification.local.cancel(ID, function () {
+	    alert('notification has been remove - '+ID);
 	});
 }

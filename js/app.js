@@ -84,7 +84,6 @@ function populateArchive(ids) {
 
 function populateArchive2(ids) {
 	setTimeout(loaded, 200);
-	//clean content
 	
 	setTimeout(function() {
 
@@ -94,24 +93,25 @@ function populateArchive2(ids) {
 		$('#message-list').children().each(function() {
 
 			var id = $(this).attr('id');
-			var height = $("#"+id).css('height');
-			
-			var deleteSwipe = $('#delete_'+id).css('height');
-			
-			//if ID is still not i the list
-			//prevent duplicate
-			if(typeof deleteSwipe === 'undefined') {
-				$('#message-archive').append(
-					'<div id="delete_'+id+'" class="row" style="height:'+height+'">'+
-		            '<div onclick="deleteSwipe.call(this,event)" id="'+id+'" class="delete-swipe col-xs-6 col-sm-6 pull-right">'+
-		            '<p><i class="fa fa-trash-o fa-2x center-swipe"></i></p>'+
-		            '</div></div>');
-			}
-			
-		});
-	}, 200);
 
-	
+			//dont process if there is no GUID on the message listing
+			if(typeof id !== 'undefined') {
+				var height = $("#"+id).css('height');
+				
+				var deleteSwipe = $('#delete_'+id).css('height');
+				
+				//if ID is still not i the list
+				//prevent duplicate
+				if(typeof deleteSwipe === 'undefined') {
+					$('#message-archive').append(
+						'<div id="delete_'+id+'" class="row" style="height:'+height+'">'+
+			            '<div onclick="deleteSwipe.call(this,event)" id="'+id+'" class="delete-swipe col-xs-6 col-sm-6 pull-right">'+
+			            '<p><i class="fa fa-trash-o fa-2x center-swipe"></i></p>'+
+			            '</div></div>');
+				}
+			}
+		});
+	}, 200);	
 }	
 
 function deleteSwipe(e) {
@@ -644,6 +644,8 @@ function onClickDetail(type) {
 
 			$(this).css('background-color', '#E4E4E4');
 			$(this).css('font-weight', 'none');
+
+			removeNotification(id);
 		}
 
 		//prepare UI for detail page
@@ -1545,7 +1547,7 @@ function backEvent() {
 		var priority 	= $('#compose-important option:selected').html();
 		var guid 		= $('#detail-guid').val();
 		var empty 		= true;
-		
+
 		//if no GUID found
 		if($.isEmptyObject(guid)) {
 			guid = 0;

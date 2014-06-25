@@ -645,7 +645,8 @@ Messages.prototype = {
 		}
 
  		//reply all button
- 		$('#detail-reply-all').unbind().click(function(e) {
+ 		//$('#detail-reply-all').unbind().click(function(e) {
+ 		$('#detail-reply-all').bind('tap', function(e) {	
  			if(emptySubject == true) {
  				data['b:Label']['b:Subject'] = '';
  			}
@@ -661,7 +662,9 @@ Messages.prototype = {
  		});
 
  		//reply button
- 		$('#detail-reply').unbind().click(function(e) {
+ 		//$('#detail-reply').unbind().click(function(e) {
+ 		$('#detail-reply').bind('tap', function(e) {
+			
  			if(emptySubject == true) {
  				
  				data['b:Label']['b:Subject'] = '';
@@ -677,7 +680,8 @@ Messages.prototype = {
  		});
 
  		//forward button
- 		$('#detail-forward').unbind().click(function(e) {
+ 		//$('#detail-forward').unbind().click(function(e) {
+ 		$('#detail-forward').bind('tap', function(e) {	
  			if(emptySubject == true) {
  				data['b:Label']['b:Subject'] = '';
  			}
@@ -692,7 +696,8 @@ Messages.prototype = {
  		});
  		
  		//delete message
- 		$('#delete-message').unbind().click(function(e) {
+ 		//$('#delete-message').unbind().click(function(e) {
+ 		$('#delete-message').bind('tap', function(e) {	
  			e.stopPropagation();
 			e.preventDefault();
 			
@@ -701,7 +706,8 @@ Messages.prototype = {
  		});
 
  		//undelete message
-		$('#undelete-message').unbind().click(function(e) {
+		//$('#undelete-message').unbind().click(function(e) {
+		$('#undelete-message').bind('tap', function(e) {		
  			e.stopPropagation();
 			e.preventDefault();
 			
@@ -720,9 +726,11 @@ Messages.prototype = {
 		//empty everything
 		$('#message-list').html('');
 		$('#message-archive').html('');
+
 		if(messageList == null || messageList.length == 0) {
 			//stop animation
 			this.animateList('stop', type);
+			var ids = [];
 			$("#message-list").html(EMPTY);
 			
 		} else {
@@ -2155,15 +2163,16 @@ Messages.prototype = {
 		         			}
 			         		
 			         		count++; 
+
 			         		//if not in listing
 		         			if(!inListing && type == 'Inbox') {
 		         				 
 		         				//push everything
 		         				window.messageList[type].splice(0, 0, data[i]);
+		         				
 		         				var subject = data[i]['b:Subject'];
-
-		         				//get unread count	
-		         				var count = $('#'+type+' span.badge').html();
+		         				var guid 	= data[i]['b:MessageGUID'];
+								var count 	= $('#'+type+' span.badge').html();
 								
 								//do the Math in the Message unread Count
 				 				if(count != 0) {
@@ -2195,7 +2204,7 @@ Messages.prototype = {
 				         		//alert('multi'+data[i]['b:Subject']);
 				 				//show only notification count if inside Inbox
 		         				if(type == 'Inbox') {
-		         					showNotification(subject);
+		         					showNotification(subject, guid);
 		         					
 		         					notification('New message recieve');
 			         				
@@ -2214,7 +2223,6 @@ Messages.prototype = {
 	         				if(window.messageList[type][x]['b:MessageGUID'] == data['b:MessageGUID']) {	
 	         					inListing = true;
 	         				} 
-
 	         			}
 
 	         			if(!inListing && type == 'Inbox') {
@@ -2222,8 +2230,8 @@ Messages.prototype = {
 	         				window.messageList[type].splice(0, 0, data);
 	         				//window.messageList[type].unshift(data);
 	         				var subject = data['b:Subject'];
-	         				//get unread count	
-	         				var count = $('#'+type+' span.badge').html();
+	         				var guid 	= data['b:MessageGUID'];
+							var count = $('#'+type+' span.badge').html();
  							
  							//do the Math in the Message unread Count
 			 				if(count != 0) {
@@ -2256,7 +2264,7 @@ Messages.prototype = {
 			         		//show only notification count if inside Inbox
 			 				if(type == 'Inbox') {
 	         					
-	         					showNotification(subject);
+	         					showNotification(subject, guid);
 	         					
 								notification('New message recieve');	
 		         				
