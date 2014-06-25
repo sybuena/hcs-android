@@ -1201,6 +1201,15 @@ Messages.prototype = {
 						//window.messages.getDetail(id, type, unread);
 					} else {
 						var parentPage 	= $('ul.nav-stacked li.active a.left-navigation').attr('id');
+						
+						//if  page is from settings
+						if(parentPage == 'Settings') {
+							
+							//show message settings page 
+							settings();
+
+							return false;
+						}
 
 						window.messages.get(parentPage, 15, 1);
 					}
@@ -2151,7 +2160,8 @@ Messages.prototype = {
 		         				 
 		         				//push everything
 		         				window.messageList[type].splice(0, 0, data[i]);
-		         				
+		         				var subject = data[i]['b:Subject'];
+
 		         				//get unread count	
 		         				var count = $('#'+type+' span.badge').html();
 								
@@ -2182,17 +2192,11 @@ Messages.prototype = {
 			     					
 				         			window.messages.displayMessage(window.messageList[type], type, 10, 1);
 				         		}
-
+				         		//alert('multi'+data[i]['b:Subject']);
 				 				//show only notification count if inside Inbox
 		         				if(type == 'Inbox') {
+		         					showNotification(subject);
 		         					
-		         					window.plugin.notification.local.add({ 
-										message : '"'+data[i]['b:Subject']+'"',
-										//message 	: '',
-										title 		: 'New message received',
-										autoCancel: true
-									});
-
 		         					notification('New message recieve');
 			         				
 		         					
@@ -2217,7 +2221,7 @@ Messages.prototype = {
 
 	         				window.messageList[type].splice(0, 0, data);
 	         				//window.messageList[type].unshift(data);
-	         				
+	         				var subject = data['b:Subject'];
 	         				//get unread count	
 	         				var count = $('#'+type+' span.badge').html();
  							
@@ -2248,15 +2252,12 @@ Messages.prototype = {
 			         			window.messages.displayMessage(window.messageList[type], type, 10, 1);
 			         		}
 
+			         		//alert(data['b:Subject']);
 			         		//show only notification count if inside Inbox
 			 				if(type == 'Inbox') {
 	         					
-	         					window.plugin.notification.local.add({ 
-									message : '"'+data['b:Subject']+'"',
-									title 		: 'New message received',
-									autoCancel: true
-								});
-
+	         					showNotification(subject);
+	         					
 								notification('New message recieve');	
 		         				
 	         				}

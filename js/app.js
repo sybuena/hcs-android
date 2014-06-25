@@ -1159,6 +1159,19 @@ function notification(html) {
  * @return bool 
  */
 function settings() {
+	$('#back-top').hide();
+	$('#sidebar-top').show();
+	$('#delete-message').hide();
+	$('#compose-message').show();
+	$('#process-send').hide();
+
+	//flag currrent page as LIST
+	$('.message-elem').hide();
+	$('.current-page').attr('id', 'list');	
+	$('#folder-name').html('Settings');
+	$('.loading-messages').hide();
+	$('#message-settings').show();
+
 	//get settings variables from local storage
 	window.url 		= localStorage.getItem('url');
   	window.interval = parseInt(localStorage.getItem('interval'));
@@ -1280,12 +1293,7 @@ function mainPage(snapper, loginUser) {
 			click, then show message settings
 		   ------------------------------------ */
 		} else if(type == 'Settings') {
-			//flag currrent page as LIST
-			$('.message-elem').hide();
-			$('.current-page').attr('id', 'list');	
-			$('#folder-name').html('Settings');
-			$('.loading-messages').hide();
-			$('#message-settings').show();
+			
 			//show message settings page 
 			settings();
 
@@ -1521,11 +1529,13 @@ function backEvent() {
 	//get the parent page from the LI active to the left swipe
 	var parentPage 	= $('ul.nav-stacked li.active a.left-navigation').attr('id');
 	
+	
+
 	//stop the main loader
 	mainLoader('stop');
 	
 	$('.no-connection').hide();
-	console.log(parentPage);
+	
 	//if in compose then hit back button
 	if(currentPage == 'compose') {
 		//prepare variables
@@ -1535,6 +1545,7 @@ function backEvent() {
 		var priority 	= $('#compose-important option:selected').html();
 		var guid 		= $('#detail-guid').val();
 		var empty 		= true;
+		
 		//if no GUID found
 		if($.isEmptyObject(guid)) {
 			guid = 0;
@@ -1559,6 +1570,15 @@ function backEvent() {
 			$('#draft-modal').modal('hide');
 			$('#process-send').hide();	
 			
+			//if  page is from settings
+			if(parentPage == 'Settings') {
+				
+				//show message settings page 
+				settings();
+
+				return false;
+			}
+
 			//unset pagination whenevery changing to another
 			//message listing
 			window.startCount = 10;
@@ -1611,6 +1631,15 @@ function backEvent() {
 			$('#draft-modal').modal('hide');
 			$('#process-send').hide();	
 
+			//if  page is from settings
+			if(parentPage == 'Settings') {
+				
+				//show message settings page 
+				settings();
+
+				return false;
+			}
+
 			//unset pagination whenevery changing to another
 			//message listing
 			window.startCount = 10;
@@ -1645,6 +1674,16 @@ function backEvent() {
 
  	//else it is not in Inbox listing	
  	} else {
+
+ 		//if  page is from settings
+		if(parentPage == 'Settings') {
+			
+			//show message settings page 
+			settings();
+
+			return false;
+		}
+
  		//unset pagination whenevery changing to another
 		//message listing
 		window.startCount = 10;
@@ -1801,12 +1840,13 @@ var _SOAP = (function() {
 }());
 
 document.addEventListener('deviceready', function() {	
-	if(typeof window.plugin !== 'undefined') {
+	/*if(typeof window.plugin !== 'undefined') {
 		//Enables the background mode. The app will not pause while in background.
 		window.plugin.backgroundMode.enable();
 		//unset badge
 		window.plugin.notification.badge.set(0);
 	}
+
 	navigator.geolocation.getCurrentPosition(
 		//do nothing
 		function() {
@@ -1816,7 +1856,7 @@ document.addEventListener('deviceready', function() {
 		function() {
 
 		}
-	);
+	);*/
 	
     //check internet on load
 	window.connection = window.navigator.onLine;
