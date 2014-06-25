@@ -517,6 +517,7 @@ function bind() {
 		
 		//make all lowercase then capitalize first letter
 		var newName = capitalize(name.toLowerCase());
+		
 		//now add the user fullname to the left panel
 		$('.user-info h5').html('<b>'+newName+'</b>');
 		
