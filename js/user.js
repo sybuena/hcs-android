@@ -56,7 +56,7 @@ User.prototype = {
 
 			//if no internet
 			if(!window.connection) {
-					error = true;
+				error = true;
 				$('.login-error').html('No Internet Connection');
 				
 			}
@@ -87,7 +87,7 @@ User.prototype = {
 		        //save and encryt it to local storage
 		        window.username = _string.encrypt(username);
 		        window.password = _string.encrypt(password);
-
+		        
 		        //save the encrypted username and password to the local storage
 		        localStorage.setItem('username', window.username);
 		        localStorage.setItem('password', window.password);

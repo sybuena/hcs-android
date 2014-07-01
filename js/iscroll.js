@@ -110,7 +110,7 @@ var m = Math,
 			hScrollbar: true,
 			vScrollbar: true,
 			fixedScrollbar: isAndroid,
-			hideScrollbar: isIDevice,
+			hideScrollbar: true,	//hideScrollbar: isIDevice,
 			fadeScrollbar: isIDevice && has3d,
 			scrollbarClass: '',
 

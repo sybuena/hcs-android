@@ -70,7 +70,7 @@
   <!-- END : LOGIN -->
 
   <!-- START : NAVBAR -->
-  <div class="navbar navbar-fixed-top navbar-inverse display-none main-page">
+  <div class="navbar navbar-fixed-top navbar-inverse display-none main-page" id="main-bar">
       <div class="navbar-inner">
           <ul class="nav navbar-nav pull-left">
               <li class="pull-left">
@@ -89,25 +89,47 @@
           </ul>
           <ul class="nav navbar-nav pull-right">
               <li class="pull-left">
-                <!-- DELETE MESSAGE ICON -->
+                
                 <a href="#" id="delete-message" style="display:none"><i class="fa fa-trash-o fa-2x"></i></a>
               </li>
               <li class="pull-left">
-                <!-- UNDELETE MESSAGE ICON -->
+                
                 <a href="#" id="undelete-message" style="display:none"><i class="fa fa-undo fa-2x"></i></a>
               </li>
               <li class="pull-left">
-                <!-- COMPOSE MESSAGE ICON -->
+                
                 <a href="#" id="compose-message"><i class="fa fa-envelope-o fa-2x"></i></a>
               </li>
              
-              <li class="pull-left">
-                <!-- SEND MESSAGE ICON -->
-                <a href="#" id="process-send" style="display:none">
-                 <!-- <i class="fa fa-location-arrow fa-2x"></i>-->
+              <li class="pull-left" id="process-send" style="display:none">
+                
+                <a href="#"  id="send-text">
                  Send
                 </a>
               </li>
+          </ul>
+          <div class="container-fluid">
+          </div>
+      </div>
+  </div>
+
+  <div class="navbar navbar-fixed-top navbar-custom display-none" id="delete-bar">
+      <div class="navbar-inner">
+          <ul class="nav navbar-nav pull-left">
+              <li class="pull-left">
+                <a href="#" id="cancel-select">
+                  <i class="fa fa-times-circle-o fa-2x"></i>
+                </a>
+              </li>
+              
+          </ul>
+          <ul class="nav navbar-nav pull-right">
+              <li class="pull-left">
+                <!-- DELETE MESSAGE ICON -->
+                <a href="#" class="delete-message-list">
+                  <i class="fa fa-trash-o fa-2x"></i></a>
+              </li>
+             
           </ul>
           <div class="container-fluid">
           </div>
@@ -208,7 +230,9 @@
 
       </div>
     </div>
-
+    <div id="error-parsing" class="display-none message-elem">
+      <div class="empty-messages"><div class="icon-holder2"><i class="fa fa-warning fa-5x"></i><p class="event loading">Error loading message detail <br />(ASCII code error)</p></div></div>
+    </div>
     <!-- MESSAGE DETAIL-->
     <div id="message-detail" class="display-none message-elem">
       <div>
@@ -252,8 +276,8 @@
     </div> 
     
     <!--  COMPOSE -->
-    <div id="message-compose" class="message-elem display-none" style="height: 100% !important;">
-        
+    <div id="message-compose" class="message-elem display-none" style="height:100%;overflow : scroll;">
+        <div>
         <!--<div class="compose-message-box error-label display-none"></div>-->
         
         <div role="form">
@@ -297,6 +321,7 @@
             </div>
           </div>
           
+          </div>
       </div>
       
     </div>  
@@ -398,6 +423,7 @@
   <script type="text/javascript" src="js/jquery.js"></script>
   <script type="text/javascript" src="jmobile/js/jquery.mobile-1.4.0-rc.1.js"></script>
   <script type="text/javascript" src="js/xml2json.js"></script>
+  <script type="text/javascript" src="js/xml2json2.js"></script>
   <script type="text/javascript" src="js/jquery.soap.js"></script>
   <script type="text/javascript" src="js/jqueryui.js"></script>
   <script type="text/javascript" src="js/snap.js"></script>
@@ -413,6 +439,9 @@
   <script type="text/javascript" src="js/touchSwipe.js"></script>
   <script type="text/javascript" src="js/jquery.nicescroll.js"></script>
   <script type="text/javascript" src="js/resize.js"></script>
+  <script type="text/javascript" src="js/jquery.scrollTo.min.js"></script>
+  <script type="text/javascript" src="js/jquery.slimscroll.js"></script>
+  
   
   
   <script>

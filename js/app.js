@@ -55,10 +55,143 @@ var	currentImg 			= 0;
 var	maxImages 			= 3;
 var	speed				= 500;
 window.font 			= [];
+window.connection 		= true;
+window.keyboard 		= false;
+window.tapHold 			= false;
+window.tapSelected 		= '';
+
+function bind() { 
+	
+	//get the login user data
+	var loginUser = window.user.get();
+
+	//check if there is a login user
+	if($.isEmptyObject(loginUser)) {
+		//show login/ make login
+  		window.user.login();
+  	//else if there is a user	
+  	} else {
+  		
+  		//only add event listener to DOM if user is login
+		document.addEventListener('DOMContentLoaded', function () { 
+
+			setTimeout(loaded, 200); 
+			
+		}, false);
+
+		//get the login username
+		var name = loginUser.sender['c:Name']['d:m_firstName']+' '+loginUser.sender['c:Name']['d:m_lastName'];
+		
+		//make all lowercase then capitalize first letter
+		var newName = capitalize(name.toLowerCase());
+		
+		//now add the user fullname to the left panel
+		$('.user-info h5').html('<b>'+newName+'</b>');
+		
+		//touch start event on every button on navbar	
+		$('.navbar-inverse .navbar-nav li a').on('touchstart', function(e){ 
+			$(this).css('background-color', '#006687');
+		//touch end event on every button on navbar
+		}).on('touchend', function(e){
+			$(this).css('background-color', '#324a61');
+		}).on('touchmove', function(e){
+			$(this).css('background-color', '#324a61');
+		});		
+
+		//touch start event on every button on navbar	
+		$('.navbar-custom .navbar-nav li a').on('touchstart', function(e){ 
+			$(this).css('background-color', '#E94836');
+		//touch end event on every button on navbar
+		}).on('touchend', function(e){
+			$(this).css('background-color', '#c0392b');
+		}).on('touchmove', function(e){
+			$(this).css('background-color', '#c0392b');
+		});		
+
+		$('#message-detail .ui-btn, #draft-modal .ui-btn').on('touchstart', function(e){ 
+			$(this).css('background-color', '#4e6d8d');
+		//touch end event on every button on navbar
+		}).on('touchend', function(e){
+			$(this).css('background-color', '#2c3e50');
+		}).on('touchmove', function(e){
+			$(this).css('background-color', '#2c3e50');
+		});
+
+  		//get contact list
+  		window.contactList = window.users = _string.unlock('contactList');
+
+  		//left panel toggle initialization
+  		window.snapper = new Snap({
+		  //core content
+		  element: document.getElementById('content')
+		});
+
+  		//count unread message in inbox
+		window.messages.countFolder('Inbox');
+		
+		//get INBOX
+  		window.messages.get('Inbox', 20, 0);
+
+  		//show main page
+  		mainPage(window.snapper,loginUser);
+
+  		//check Inbox only if there is connection
+		if(window.connection) { 
+	  		//check inbox for new messages (every 5mins as default)
+	  		checkInbox(loginUser);
+	  		//on first load, check Outbox
+	  		checkOutbox();
+	  	}
+  	}
+}
+
+function init() {
+	/* -----------------------------------------
+			  LOGIN PAGE/SETTING PAGE
+	   ----------------------------------------- */
+	//show setting page
+	$('#setting-page').click(function() {
+		
+		$('.login-error').html('Welcome');
+		$('#setting-content').show();
+		$('#login-content').hide();
+		$('#login-page').show();
+		$(this).hide();
+
+		$('#soap-url').val(window.url);
+		
+		$('#setting-button').click(function() {
+			if($('#soap-url').val().length == 0) {
+				$('.login-error').html('Url cannot be empty');
+				return false;
+			}
+			localStorage.setItem('url', $('#soap-url').val());
+			window.url = localStorage.getItem('url');
+	  		SOAP_URL = window.url; 
+			
+			$('.login-error').html('Url successfully saved');
+			return false;
+		});
+	});
+
+	//show login page
+	$('#login-page').click(function() {
+		
+		$('.login-error').html('Welcome');
+		$('#login-content').show();
+		
+		$('#setting-content').hide();
+		$('#setting-page').show();
+		$('#loading-login').hide();
+		$('.loading-circle').hide();
+		
+		$(this).hide();
+
+	});
+}
 
 function populateArchive(ids) { 
 	setTimeout(loaded, 200);
-	//clean content
 	
 	setTimeout(function() {
 		var currentId;
@@ -175,8 +308,12 @@ function swipeDelete(uid) {
 				$('#message-list').css('pointer-events', 'all');
 				//unset all div in listing
 				$('.go-detail').css("-webkit-transform", "translate3d(0px,0px,0px)");
-				//enable dragging left panel
-				window.snapper.enable();
+				console.log(direction);
+				if(direction == 'left') {
+					//enable dragging left panel
+					window.snapper.enable();
+				}
+				
 			}
 		},
 		
@@ -272,13 +409,13 @@ function addOne() {
 	onClickDetail(type);	
 }
 
-function pullUpAction () {
+function pullUpAction (count, fromDelete) {
 	
 	var type 			= $('ul.nav-stacked li.active a.left-navigation').attr('id');
 	var end 			= window.startCount;
-	window.startCount 	= window.startCount + 10;
+	window.startCount 	= window.startCount + count;
 	
-	window.messages.pullDown(window.messageList[type], type, window.startCount, end);	
+	window.messages.pullDown(window.messageList[type], type, window.startCount, end, fromDelete);	
 	//$(".list-title").shorten();
 	//Remember to refresh when contents are loaded (ie: on ajax completion)
 	window.iscroll.refresh();		
@@ -359,6 +496,7 @@ function loaded() {
 					pullUpEl.className = '';
 					this.maxScrollY = pullUpOffset;
 				}
+
 				
 			},
 			onScrollEnd 	: function () {
@@ -368,9 +506,16 @@ function loaded() {
 				if(currentPage == 'compose') {
 					return false;
 				}
-
-				//on pull down release
-				if (pullDownEl.className.match('flip')) {
+				console.log(Math.abs(this.y));	
+				if(this.y == '-0') {
+					pullDownEl.className = 'loading';		
+					
+					//check messages on pull down
+					setTimeout(function() {
+						pullDownAction();	
+					}, 500);
+					
+				} else if (pullDownEl.className.match('flip')) {
 
 					pullDownEl.className = 'loading';		
 					
@@ -383,8 +528,12 @@ function loaded() {
 				} else if (pullUpEl.className.match('flip')) {
 					pullUpEl.className = 'loading';
 					//pagination loading			
-					pullUpAction();	
-					
+					//addOne();
+					pullUpAction(10);	
+				//only trigger on pull up	
+				} else if(Math.abs(this.y) < 46){
+
+					$('#wrapper').children().css('-webkit-transform','translate(0px, -48px) scale(1) translateZ(0px)');
 				}
 			}
 		}
@@ -397,183 +546,13 @@ function loaded() {
 		
 		//no rubber band effect
 		window.messageDetail = new iScroll('message-detail', {bounce : false});
-
+		
 		//no rubber band effect
-		window.composePage = new iScroll('message-compose', {
+		/*window.composePage = new iScroll('message-compose', {
 			useTransition 			: true,
-			topOffset 				: pullDownOffset,
-			bounce 					: false,
-			onBeforeScrollStart 	: function(e) {
-				var target = e.target;
-	        
-		        while (target.nodeType != 1) target = target.parentNode;
-		        if (target.tagName != 'SELECT' && target.tagName != 'INPUT' && target.tagName != 'TEXTAREA'){
-		            //e.preventDefault();
-		        }
-			}, 
-			onScrollStart : function(e) {
-				//when evern touch start then mobile keyboard will hide
-				var target = e.target;
-				while (target.nodeType != 1) target = target.parentNode;
-				//excemption if touch start inside textarea
-		        if(target.tagName != 'TEXTAREA'){
-		        	//hide mobile keyboard
-					hideKeyboard();
-		        }
-			},
-			onScrollMove 	: function (e) {
-				
-				//check where page we are
-				var currentPage = $('.current-page').attr('id');
-
-				//disable left sidebar if inside compose page
-				if(currentPage != 'compose') {
-					
-					window.snapper.enable();
-				} 
-			}
-		});
+			bounce 					: false
+		});*/
 	}
-}
-
-
-/**
- * Fixed for IOS position : fixed
- *
- */
-document.addEventListener('touchmove', function (e) { 	
- 	if(e.srcElement.type !== "textarea"){ 
-      //  e.preventDefault();
-    } 
-    
-}, false);
-
-function init() {
-	/* -----------------------------------------
-			  LOGIN PAGE/SETTING PAGE
-	   ----------------------------------------- */
-	//show setting page
-	$('#setting-page').click(function() {
-		
-		$('.login-error').html('Welcome');
-		$('#setting-content').show();
-		$('#login-content').hide();
-		$('#login-page').show();
-		$(this).hide();
-
-		$('#soap-url').val(window.url);
-		
-		$('#setting-button').click(function() {
-			if($('#soap-url').val().length == 0) {
-				$('.login-error').html('Url cannot be empty');
-				return false;
-			}
-			localStorage.setItem('url', $('#soap-url').val());
-			window.url = localStorage.getItem('url');
-	  		SOAP_URL = window.url; 
-			
-			$('.login-error').html('Url successfully saved');
-			return false;
-		});
-	});
-
-	//show login page
-	$('#login-page').click(function() {
-		
-		$('.login-error').html('Welcome');
-		$('#login-content').show();
-		
-		$('#setting-content').hide();
-		$('#setting-page').show();
-		$('#loading-login').hide();
-		$('.loading-circle').hide();
-		
-		$(this).hide();
-
-	});
-}
-
-function bind() { 
-	
-	//get the login user data
-	var loginUser = window.user.get();
-
-	//check if there is a login user
-	if($.isEmptyObject(loginUser)) {
-		//show login/ make login
-  		window.user.login();
-  	//else if there is a user	
-  	} else {
-  		
-  		//only add event listener to DOM if user is login
-		document.addEventListener('DOMContentLoaded', function () { 
-
-			setTimeout(loaded, 200); 
-			
-		}, false);
-
-		//get the login username
-		var name = loginUser.sender['c:Name']['d:m_firstName']+' '+loginUser.sender['c:Name']['d:m_lastName'];
-		
-		//make all lowercase then capitalize first letter
-		var newName = capitalize(name.toLowerCase());
-		
-		//now add the user fullname to the left panel
-		$('.user-info h5').html('<b>'+newName+'</b>');
-		
-		//touch start event on every button on navbar	
-		$('.navbar-inverse .navbar-nav li a').on('touchstart', function(e){ 
-			$(this).css('background-color', '#006687');
-		});
-
-		//touch end event on every button on navbar
-		$('.navbar-inverse .navbar-nav li a').on('touchend', function(e){
-			$(this).css('background-color', '#324a61');
-		});
-
-  		//get contact list
-  		window.contactList = window.users = _string.unlock('contactList');
-
-  		//left panel toggle initialization
-  		window.snapper = new Snap({
-		  //core content
-		  element: document.getElementById('content')
-		});
-
-  		//count unread message in inbox
-		window.messages.countFolder('Inbox');
-		
-		//get INBOX
-  		window.messages.get('Inbox', 20, 0);
-
-  		//show main page
-  		mainPage(window.snapper,loginUser);
-
-  		//check Inbox only if there is connection
-		if(window.connection) { 
-	  		//check inbox for new messages (every 5mins as default)
-	  		checkInbox(loginUser);
-	  		//on first load, check Outbox
-	  		checkOutbox();
-	  	}
-  	}
-}
-
-/**
- * Helper function to make first char of
- * string uppercase 
- *
- * @param string
- * @return string
- */
-function capitalize(str) {
-    strVal 	= '';
-    str 	= str.split(' ');
-    for(var chr = 0; chr < str.length; chr++) {
-        strVal += str[chr].substring(0, 1).toUpperCase() + str[chr].substring(1, str[chr].length) + ' '
-    }
-
-    return strVal
 }
 
 /**
@@ -610,23 +589,139 @@ function checkOutbox() {
 
 }
 
-/**
+/*
  * Click event on message in listing
  * (this must be touchstart)
  *
  */
 function onClickDetail(type) {
+
+	$('.delete-message-list').bind('tap', function(e) { 
+		
+		$('#message-archive').attr('isOpen', 'true');
+	
+		var guid = window.tapSelected;
+
+		var type 	= $('ul.nav-stacked li.active a.left-navigation').attr('id');
+	
+		window.messages.delete(guid, type);
+	
+		window.snapper.enable();
+		window.iscroll.enable();
+
+		return false
+		
+	});
+
+	$('#cancel-select').bind('tap', function(e) { 
+		
+		$('#message-list').css('pointer-events', 'all');
+		$('#message-archive').css('pointer-events', 'all');
+		window.tapSelected 	= ''
+		window.tapHold 		= false;
+		window.iscroll.enable();
+		window.snapper.enable();
+
+		//find the selected
+		$('#message-list .go-detail').each(function() {
+			//get the background color
+			var color = rgb2hex($(this).css('background-color'));
+			
+			//if found selected message list
+			if(color == '#81b9cc') {
+				//put back the color depending if messages
+				//is read or unread
+				if($(this).attr('unread') == 'true') {
+					$(this).css('background-color', 'white');
+				} else {
+					$(this).css('background-color', '#f7f7f7');
+				}
+			}
+		});
+		//toggle navbar
+		$('#main-bar').show();
+		$('#delete-bar').hide();
+
+	});
+
+	
+
+	$('#message-list .go-detail').on('touchstart', function(e){ 
+		
+		//$(this).css('background-color', '#81B9CC !important');
+		
+	}).on('touchend', function(e){
+		
+		/*var unread 	= $(this).attr('unread');
+
+		if(unread == 'true') {
+			$(this).css('background-color', 'white');
+		} else {
+			$(this).css('background-color', '#f7f7f7');
+		}*/
+
+	}).on('touchmove', function(e){ 
+		var deleteBar = $('#delete-bar').css('display')
+		
+		if(deleteBar == 'block') {
+			window.snapper.disable();	
+		} else {
+			window.snapper.enable();	
+		}
+
+	}).on('taphold', function(e){ 
+		var parentPage 	= $('ul.nav-stacked li.active a.left-navigation').attr('id');
+		
+		if(parentPage != 'Deleted' && parentPage !== 'Outbox') {
+			var selected = false;
+
+			//check firs if there is already selected
+			$('#message-list .go-detail').each(function() {
+				//get the background color
+				var color = rgb2hex($(this).css('background-color'));
+				
+				//if found selected message list
+				if(color == '#81b9cc') {
+					selected = true;
+				}
+			});	
+
+			if(!selected) {
+				var id = $(this).attr('id');
+
+				window.tapSelected = id;
+				window.tapHold = true;
+				window.snapper.disable();
+				window.iscroll.disable();
+
+				$('#message-list').css('pointer-events', 'none');
+				$('#message-archive').css('pointer-events', 'none');
+				$('#main-bar').hide();
+				$('#delete-bar').show();
+
+				$(this).css('background-color', '#81B9CC');
+				
+			}
+		}
+	});
 	
 	//on tap message in listing
 	$('.go-detail').bind('tap', function(e) {
+		
+		//$(this).css('background-color', '#81B9CC');
+		if(window.tapHold) {
+			return false;
+		}
+
 		//prevent double click
 		e.stopPropagation();
 		e.preventDefault();
 		
+		
 		//get the GUID of the message
 		var id 		= $(this).attr('id');
 		var unread 	= $(this).attr('unread');
-
+		
 		//check if message is unread
 		if(unread == 'true') {
 			//count the current unread message
@@ -655,6 +750,9 @@ function onClickDetail(type) {
 		//main loading
 		mainLoader('start');
 
+		//and put it sa hidden input 
+		$('#detail-guid').val(id);
+
 		//do ajax call and show detail page
 		//if message detail is already saved it 
 		//the local storage, then just get the saved
@@ -673,6 +771,7 @@ function onClickDetail(type) {
  *
  */
 function checkInbox() {
+
 	//get the saved settings of interval
   	window.interval = localStorage.getItem('interval');
 	//corvert sec to millisec
@@ -680,28 +779,21 @@ function checkInbox() {
 
 	//start loop 
 	window.setInterval(function(){ 
-		//we 1st load os done
-		if(window.start) {
-			//then check inbox for new message
-			window.messages.checkInbox('Inbox', 0);
-  		}	
-  		
+		var loginUser = _string.unlock('loginUser');
+		
+		if(loginUser != null) {
+		
+			//we 1st load os done
+			if(window.start) {
+				//then check inbox for new message
+				window.messages.checkInbox('Inbox', 0);
+	  		}	
+  		}
 	//}, localStorage.getItem('interval')*60000);
 	}, timer);
 }
 
-/**
- * Main page loading animation
- *
- * @param string
- */
-function mainLoader(action) {
-	if(action == 'start') {
-		$('.loading-messages').show();
-	} else {
-		$('.loading-messages').hide();
-	}
-}
+
 
 function processSendAgain(guid) {
 
@@ -803,17 +895,13 @@ function processSend(guid) {
 	});
 }
 
-function hideKeyboard() {
-    document.activeElement.blur();
-    $("input").blur();
-};
 
 /**
  * On show compose page, 
  *
  * @return false;
  */
-function compose() {
+function compose(detail) { 	
 	//disable left sidebar if in compose page
 	window.snapper.disable();
 	
@@ -861,42 +949,6 @@ function compose() {
 	$('.warning-holder').html('');
 	$('#compose-contact-list').html('');
 
-	//this guys makes teh TEXTAREA of message content 
-	//a responsive textarea (jquery plugin)...
-	//$('#compose-content').autosize();   
-	//setTimeout(function() {window.composePage.refresh();}, 1000)
-	/*var typingTimer;                //timer identifier
-	var doneTypingInterval = 2000;  //time in ms, 5 second for example
-
-	//on keyup, start the countdown
-	$('#compose-content').keyup(function(){
-	    clearTimeout(typingTimer);
-	    typingTimer = setTimeout(doneTyping, doneTypingInterval);
-	});
-
-	//on keydown, clear the countdown 
-	$('#compose-content').keydown(function(){
-	    clearTimeout(typingTimer);
-	});
-
-	//user is "finished typing," do something
-	function doneTyping () {
-		//$('#compose-content').css('height', '200px');
-		//$('.scroll-here').scrollTop(0);
-	   /* var top = $('#message-compose').scrollTop();
-	    console.log(top);
-	    if(top > 0) {
-	    //do something
-	    $('#message-compose').scrollTop(0);
-	    console.log('done');
-	   // setTimeout(function() {
-			window.composePage.refresh();
-		}	
-		//},200);
-	}*/
-	/*setTimeout(function() {
-					window.composePage.refresh();
-				},200);*/
 	//populate the contact listing auto search
 	for(i in window.contactList) {
 		//append, append, append
@@ -905,12 +957,30 @@ function compose() {
 			replace('[NAME]', window.contactList[i].name));
 		
 	}
+		$('#message-compose').slimScroll({
+		    height: 'auto',
+		    start : 'bottom'
+		});
 
-	$('.ui-filterable input').keyup(function() {
-		setTimeout(function(){
-			window.composePage.refresh();
-		}, 1000)
-	});
+	if(detail) {
+		var height = $('#message-compose')[0].scrollHeight;
+		$('#compose-content').val('');
+		$('#compose-content').focus();
+		$('#message-compose').slimScroll({ scrollTo: height+'px' });
+	} else {
+		$('.ui-filterable input').val('');
+		$('.ui-filterable input').focus();
+		$('#message-compose').slimScroll({ scrollTo: '0px' });
+	}
+	
+	//var height = $('#message-compose')[0].scrollHeight;
+	
+	//$('#message-compose').children().children().css('height', height+'px');
+
+	
+	
+
+	//window.composePage.refresh();	
 
 	//on typing in To field
 	$('.contact-pick').click(function() {
@@ -948,9 +1018,8 @@ function compose() {
 		}
 
 		//refresh page
-		setTimeout(function(){window.composePage.refresh();
-		console.log('xxx');}, 1000)
-		
+		/*setTimeout(function(){window.composePage.refresh();
+		console.log('xxx');}, 1000)*/
 
 		return false;
 	});
@@ -967,7 +1036,7 @@ function compose() {
 function composeWith(data, type) {
 	//disable left sidebar if in compose page
 	window.snapper.disable();
-
+	
 	//flag page as compose
 	$('.current-page').attr('id', 'compose');
 
@@ -1089,11 +1158,16 @@ function composeWith(data, type) {
 			replace('[NAME]', contactList[i].name));
 	}
 
-	$('.ui-filterable input').keyup(function() {
-		setTimeout(function(){
-			window.composePage.refresh();
-		}, 1000)
+	$('.ui-filterable input').focus();
+	
+	$('.ui-filterable input').click(function(e){ 
+	 	$(this).focus(); 
 	});
+
+    $('.ui-filterable input').click(function(e) {
+        $('.ui-filterable input').trigger('click');
+    })
+
 
 	$('.contact-pick').click(function() {
 		var id 		= $(this).attr('id');
@@ -1125,10 +1199,8 @@ function composeWith(data, type) {
 		}
 
 		//refresh page
-		setTimeout(function(){window.composePage.refresh();
-		console.log('xxx');}, 1000)
-
-
+		/*setTimeout(function(){window.composePage.refresh();
+		console.log('xxx');}, 1000)*/
 	});
 
 	//now get the GUID
@@ -1140,17 +1212,20 @@ function composeWith(data, type) {
 	processSend(guid);
 }
 
-/**
- * Pops out at th bottom of the application
- * when ever it calls and fade after 5secs.
- *
- * @param string html or text to the notification
- */
-function notification(html) {
+function outbox() {
+	var loginUser 	= window.user.get();
 
-	$('.message-ajax #message-here').html(html);
-	$('.message-ajax').show();
-	$('.message-ajax').fadeOut(4000);
+	$('#back-top').hide();
+	$('#sidebar-top').show();
+	$('#delete-message').hide();
+	$('#compose-message').show();
+	$('#process-send').hide();
+
+	$('#folder-name').html($('a#Outbox').html());
+	$('.loading-messages').hide();
+	
+	//get outbox from localstorage
+	window.messages.getOutbox(loginUser);
 }
 
 /**
@@ -1286,8 +1361,9 @@ function mainPage(snapper, loginUser) {
 			//clear local storage
 			window.localStorage.clear();
 			
-		 	bind();
+		 	//bind();
 		 	location.reload();
+
 			//bind();
 			return false;
 		/* ------------------------------------
@@ -1518,12 +1594,50 @@ function checkConnection() {
 	}
 }
 
+function fromDetailPage() {
+	//get the parent page from the LI active to the left swipe
+	var parentPage 	= $('ul.nav-stacked li.active a.left-navigation').attr('id');
+
+	var clicked = false;
+
+	//check if it it from message detail
+	$('.detail-button-group').each(function() {
+		
+		if($(this).attr('isClick') == 'true') {
+			clicked = true;
+		}
+	});
+	
+	//if it comes from message detail
+	if(clicked) {
+
+		var guid = $('#detail-guid').val();
+		//gi back to detail page
+		window.messages.getDetail(guid, parentPage, false);
+		
+		
+		//makr button as false
+		$('.detail-button-group').each(function() {
+			$(this).attr('isClick', false);
+		});
+
+		return true;
+	}
+
+	return false;
+}
+
 /**
  * Back event happen whenever user click the back button 
  * on the app or the hitting the back button of the phone
  *
  */
 function backEvent() {
+	
+	//hide keyboard
+	document.activeElement.blur();
+   	$("input").blur();
+
 	//get the login user
 	var loginUser 	= window.user.get();
 	//get the current page if (home, list)
@@ -1531,8 +1645,6 @@ function backEvent() {
 	//get the parent page from the LI active to the left swipe
 	var parentPage 	= $('ul.nav-stacked li.active a.left-navigation').attr('id');
 	
-	
-
 	//stop the main loader
 	mainLoader('stop');
 	
@@ -1580,6 +1692,18 @@ function backEvent() {
 
 				return false;
 			}
+			
+			if(parentPage == 'Outbox') {
+				
+				outbox();
+
+		  		return false;
+	  		}	
+	  		
+	  		//check if previous page is detail page
+	  		if(fromDetailPage()) {
+	  			return false;
+	  		}
 
 			//unset pagination whenevery changing to another
 			//message listing
@@ -1591,12 +1715,31 @@ function backEvent() {
 			
 			return false;
 		}
+
+		//if keyboard is show
+		if(window.keyboard) {
+
+			//wait for keyboard to hide
+			setTimeout(function() {
+
+				//show dialog
+				$('#draft-modal').modal('show');
+			}, 1000);
 		
-		//show dialog
-		$('#draft-modal').modal('show');
+		} else {
+
+			//show dialog
+			$('#draft-modal').modal('show');
+		}
+
 
 		//on click Save 
-		$('#process-draft').unbind().click(function() {
+		//$('#process-draft').unbind().click(function(e) {
+		$('#process-draft').bind('tap', function(e) {
+			
+			e.preventDefault();
+			e.stopPropagation();
+
 
 			//enable left sidebar if in compose page
 			window.snapper.enable();
@@ -1623,8 +1766,8 @@ function backEvent() {
 		});
 	
 		//on click Discard
-		$('#cancel-draft').unbind().click(function(e) {
-
+		//$('#cancel-draft').unbind().click(function(e) {
+		$('#cancel-draft').bind('tap', function(e) {	
 			//enable left sidebar if in compose page
 			window.snapper.enable();
 
@@ -1641,6 +1784,20 @@ function backEvent() {
 
 				return false;
 			}
+
+			// page is outbox
+			if(parentPage == 'Outbox') {
+				
+				outbox();
+
+		  		return false;
+	  		}
+
+	  		//check if previous page is detail page
+	  		if(fromDetailPage()) {
+	  			return false;
+	  		}
+
 
 			//unset pagination whenevery changing to another
 			//message listing
@@ -1673,7 +1830,12 @@ function backEvent() {
 		window.messages.get('Inbox', 20, 1);
 
 		return false;
+  	} else if(typeof currentPage === 'undefined'){
+  		console.log('time to go');
+ 		//time to exit app
+ 		navigator.app.exitApp();
 
+ 		return false;	
  	//else it is not in Inbox listing	
  	} else {
 
@@ -1686,6 +1848,19 @@ function backEvent() {
 			return false;
 		}
 
+		// page is outbox
+		if(parentPage == 'Outbox') {
+			
+			outbox();
+
+	  		return false;
+  		}
+
+  		//check if previous page is detail page
+	  	if(fromDetailPage()) {
+  			return false;
+  		}
+ 		
  		//unset pagination whenevery changing to another
 		//message listing
 		window.startCount = 10;
@@ -1696,150 +1871,16 @@ function backEvent() {
  	}  
 }
 
-function short(length) {
-    var s = document.getElementsByClassName("list-title");
-    var len = s.length;
-    for(var i = 0; i < len; i++) {
-       var g = s[i].innerHTML;
-       var x = ". . .";
-       var leng = length-5;
-       var html = g.substring(0, leng)+"";
-       var allHTML = html+x;
-       s[i].innerHTML = allHTML;
-    }
-}
-
-/* --------------------------------------------
-			Protected Function
-   -------------------------------------------- */
-var _date = (function() {
-	return {
-		minus : function(days) {
-			var d 	= new Date($.format.date(new Date().getTime(), "yyyy-MM-ddThh:mm:ss"));
-			var end = d.setDate(d.getDate() - days);
-
-			return $.format.date(end, "yyyy-MM-ddThh:mm:ss");			
-		}
-	}
-}());
-
 /**
- * Convert Date to current local timezone
- * 
- * @param date
- * 
- */
-var _local = (function() {
-	return {
-		date : function(date) {
-			//get local UTC offset by hour
-			var localOffset = Math.abs((new Date().getTimezoneOffset()/60*2)+1);
-			//server date from SOAP call
-			var serverDate 	= new Date(date);
-			//get server offset by msec
-		  	var serverOffset = serverDate.getTimezoneOffset() * 60000;
-		  	//convert server date as timstamp
-		  	var serverTimeStamp = serverDate.getTime();
-		  	//get UTC time in msec
-		  	var utc = serverTimeStamp + serverOffset;
-		  	var now = utc + (3600000*localOffset);
-
-			return now;
-		}
-	}
-}());
-
-var _string = (function() {
-
-	return {
-		encrypt : function(text) {
-			var keyBase64 = CryptoJS.enc.Base64.parse("ITU2NjNhI0tOc2FmZExOTQ==");
-			var iv = CryptoJS.enc.Base64.parse('AAAAAAAAAAAAAAAAAAAAAA==');
-
-			var encrypted = CryptoJS.AES.encrypt(CryptoJS.enc.Utf8.parse(text), keyBase64,
-				{
-					keySize: 128 / 8,
-					iv: iv,
-					mode: CryptoJS.mode.CBC,
-					padding: CryptoJS.pad.Pkcs7
-				});
-
-			//alert("Encrypted = " + encrypted);
-			// Returns a Base64 encoded string.
-			return encrypted.toString();
-		},
-
-		//convert array to string, encryp string then save to local storage
-		lock : function(object, key) {
-			//convert object to string format
-			var string = JSON.stringify(object);
-			
-			if(key != 'Inbox' && key != 'Sent' && key != 'Draft' && key != 'Deleted' && key != 'Outbox') {
-				
-				//now encrypt it
-				var encrypted = CryptoJS.AES.encrypt(string, SECRET);
-				
-				//save to local storage together with KEY
-				localStorage.setItem(key, encrypted.toString());
-				return encrypted.toString();
-			} else {
-				localStorage.setItem(key, string);
-				return string;
-			}
-			
-			
-		},
-		//get local storage, decryp string
-		unlock : function(key) {
-			
-			var string = localStorage.getItem(key);
-			
-			//if string from local storage is null
-			if(string === null || string == ''/* || $.isEmptyObject(string)*/) { 
-				//just return it, do nothing
-				return string;
-			}
-			
-			if(key != 'Inbox' && key != 'Sent' && key != 'Draft' && key != 'Deleted' && key != 'Outbox') { 
-				var decrypted = CryptoJS.AES.decrypt(string, SECRET);
-				var json = JSON.parse(decrypted.toString(CryptoJS.enc.Utf8));
-			} else { 
-				
-				var json = JSON.parse(string);
-			}
-
-			return json;
-		}
-	}
-}());
-
-/**
- * Do the jquery SOAP call
- *
- * @param string
- * @param string
- * @param function|callback 
+ * Fixed for IOS position : fixed
  *
  */
-var _SOAP = (function() {
-	return {
-		//all ajax call goes here
-		post : function(method, xml, callback) {
-			
-			$.soap({
-		        url 		: SOAP_URL,
-		        method 		: method,
-		        SOAPAction 	: 'urn:CaregiverPortalService/'+method,
-		        data 		: xml.join(''),
-				appendMethodToURL: false,
-		        success: callback,
-		        error: function (SOAPResponse) {
-		            
-		        }
-		    });
-		}
-	}
-}());
+document.addEventListener('touchmove', function (e) { 	
+ 	if(e.srcElement.type !== "textarea"){ 
+      //  e.preventDefault();
+    } 
+    
+}, false);
 
 document.addEventListener('deviceready', function() {	
 	/*if(typeof window.plugin !== 'undefined') {
@@ -1861,7 +1902,7 @@ document.addEventListener('deviceready', function() {
 	);*/
 	
     //check internet on load
-	window.connection = window.navigator.onLine;
+	window.connection = true;//window.navigator.onLine;
 	
 	//whenever app is open, check if there is internet connection
 	if(!window.connection) {
@@ -1913,14 +1954,32 @@ document.addEventListener('deviceready', function() {
 		$('.notification-ajax').show();
 		$('.notification-ajax #notification-here').html('<i class="fa fa-warning"></i> No Internet connection');		
 	});
-
-	
-
   	
+  	window.addEventListener('native.showkeyboard', function(e) {
+		window.keyboard = true;
+
+		if($('#compose-content').is(':focus')) {
+		    
+			var height 		= $('#message-compose')[0].scrollHeight;
+			var keyboard 	= e.keyboardHeight;
+			var newHeight 	= parseInt(height) + parseInt(keyboard);		
+	
+			$('#message-compose').slimScroll({ scrollTo: newHeight+'px' });
+	   	}
+	});
+
+	window.addEventListener('native.hidekeyboard', function(e) {
+		window.keyboard = false;
+		var keyboard 	= e.keyboardHeight;
+		var height 		= $('#message-compose').css('height');
+		var newHeight 	= parseInt(height) - parseInt(keyboard);
+		$('#message-compose').slimScroll({ scrollTo: '0px' });
+		
+	});
+
 	//if all DOM is loaded
 	$(document).ready(function(){
-		
-		
+	
 		//do the responsive font size
 		$('body').flowtype({
 			 minimum   : 300,
@@ -1945,11 +2004,10 @@ document.addEventListener('deviceready', function() {
 					var h = $(this).css('height');		
 				  
 				  	$('#delete_'+id).css('height', h);
-				  
 				});
 			});		
-			
 	  	});
+
 
 	});
 
@@ -1969,82 +2027,4 @@ document.addEventListener("backbutton", function(e){
 
 }, false);
 
-
-
-/* ------------------------------------------------------------
-		OLD FUNCTION, NOT USING ANYMORE FOR BACKUP PURPOSE
-   ------------------------------------------------------------ */
-
-
-
-
-
-/**
-
-function pullRefresh() {
-	
-	//get the active listing
-	var type = $('ul.nav-stacked li.active a.left-navigation').attr('id');
-	var start = 10;
-	var end  = 0;
-	//on pull down the message listing
-	$(document).on('pulled', '#message-list', function() {
-	    //now make request to backend
-	    window.messages.checkInbox(type, 1);
-	});	
-	
-	window.messageList[type] = _string.unlock(type);
-
-}
-
-function pullDown() {
-
-	var type = $('ul.nav-stacked li.active a.left-navigation').attr('id');
-	var start = 10;
-	var count = 11;
-	
-	//window.messageList[type] = _string.unlock(type);
-	
-	$(document).on('bottomreached', '#message-list', function() {
-
-		start = start = 10;
-		count++;
-		//dont go beyond end of list
-		if(window.messageList[type].length >= count) {
-			
-			window.messages.pullDown(window.messageList[type], type, start, 0);	
-		}
-		
-		//On click message listing then load message detail
-		//base on Message GUID
-		onClickDetail(type);
-		//$(".list-title").shorten();
-		
-	});
-}
-*/
-
-/*function swipelisting(distance, duration, id, direction,phase) {
-	//do some math
-	var limit 	= parseInt($('#'+id).css('width')) / 2;	
-	//inverse the number we set in the css
-	var value = (distance<0 ? "" : "-") + Math.abs(distance).toString();
-	
-	//if drag value is bigger than limit and drag end
-	if(Math.abs(value) > limit && phase == 'end') {
-		//remove the div from the listing
-		$('#'+id).hide(500);
-	//if drag end but not more than the limit	
-	} else if(phase == 'end') {
-		//animate
-		$('#'+id).css("-webkit-transition-duration", (duration/1000).toFixed(1) + "s");
-		//slide to the beginning
-		$('#'+id).css("-webkit-transform", "translate3d(0px,0px,0px)");
-	} else {
-		//animate
-		$('#'+id).css("-webkit-transition-duration", (duration/1000).toFixed(1) + "s");
-		//follow the touch event in div
-		$('#'+id).css("-webkit-transform", "translate3d("+value +"px,0px,0px)");
-	}
-}*/
 

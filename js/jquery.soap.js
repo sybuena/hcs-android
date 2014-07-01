@@ -219,6 +219,10 @@ https://github.com/doedje/jquery.soap/blob/1.3.8/README.md
 			if ($.isFunction(options.beforeSend)) {
 				options.beforeSend(this);
 			}
+			//options.headers['Content-Type'] = 'text/xml; charset=iso-8859-1';
+			//options.headers['Character-Encoding'] = 'ISO-8859-1';
+			//console.log(options.headers);
+
 			return $.ajax({
 				type: "POST",
 				url: options.url,
@@ -226,9 +230,10 @@ https://github.com/doedje/jquery.soap/blob/1.3.8/README.md
 				headers: options.headers,
 			//	crossDomain: true,
 				dataType: "xml",
+				
 				processData: false,
 				data: this.toString(),
-				contentType: contentType + "; charset=UTF-8",
+				contentType: contentType + "; charset=utf-8",//"; charset=iso-8859-1",
 				xhrFields: {
 				  onprogress: function(e) {
 				    if (e.lengthComputable) {

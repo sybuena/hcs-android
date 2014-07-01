@@ -43,7 +43,7 @@ Messages.prototype = {
 		//mark inbox as home page
 		if(type == 'Inbox') {
 			$('.current-page').attr('id', 'home');
-		//else makr as page	
+		//else mark as page	
 		} else {
 			$('.current-page').attr('id', 'list');	
 		}
@@ -85,16 +85,16 @@ Messages.prototype = {
 		window.messages.displayMessage(window.messageList['Outbox'], 'Outbox', 7, 0, 1);
 	},
 	getDetail : function(guid, type, unread) {
-		//if message detail page is not it deleted
-		if(type != 'Deleted') {
-			//show delete button in detail page
-			$('#delete-message').show();
-		//else if in delete page	
-		} else {
-			//show undelete button in detail page
-			$('#undelete-message').show();
-		}
+		//mark page 
+		$('.current-page').attr('id', 'page');
+		
+		//prepare UI for detail page
+		$('#message-detail').hide();
+		$('.message-elem').hide();
 
+		mainLoader('start');
+
+		//if message detail page is not it deleted
 		$('#back-top').show();
 		
 		$('#sidebar-top').hide();
@@ -139,7 +139,7 @@ Messages.prototype = {
 			//then request it on backend
          	window.messages.loadDetail(guid, type, unread);
 		//else if found	
-		} else {
+		} else { 
 			//just display it
 			window.messages.displayDetail(window.messageDetail[guid], type, guid, unread);
 		}
@@ -167,8 +167,9 @@ Messages.prototype = {
 
 			//do ajax SOAP call		        
 		    _SOAP.post('RetrieveMessage', xml, function(soapResponse) {
+		    	console.log('success');
 		    	//convert the XML response to string
-	            var results = soapResponse.toString(); 
+	           var results = soapResponse.toString(); 
 	            //the convert the string to json data
 	            var json 	= $.xml2json(results);
 	            
@@ -176,8 +177,7 @@ Messages.prototype = {
 	            	$('.notification-ajax').show();
 					$('.notification-ajax #notification-here').html('<i class="fa fa-warning"></i>'+json['s:Envelope']['s:Body']['RetrieveMessageResponse']['RetrieveMessageResult']['a:Error']);
 					mainLoader('stop');
-					$('.current-page').attr('id', 'page');
-		
+					
 	            	return false;
 	            }
 
@@ -189,6 +189,38 @@ Messages.prototype = {
 
 	            //get the saved local storage and show it
 	            window.messages.displayDetail(data, type, guid, unread);
+		    },
+		    function(SOAPResponse) {
+
+		    	if(SOAPResponse['status'] == 'parsererror') {
+		    		
+		    		var res = '<?xml version="1.0" encoding="utf-8" ?>'+SOAPResponse['content'];
+		    		
+		    		res = res.replace(/\&#x1A;/g, ' ');
+		    		res = res.toString();
+		    		
+		    		json = $.xml2json(res);
+
+		    		if(json['s:Envelope']['s:Body']['RetrieveMessageResponse']['RetrieveMessageResult']['a:HasError'] == 'true') {
+	            		$('.notification-ajax').show();
+						$('.notification-ajax #notification-here').html('<i class="fa fa-warning"></i>'+json['s:Envelope']['s:Body']['RetrieveMessageResponse']['RetrieveMessageResult']['a:Error']);
+						mainLoader('stop');
+					
+	            		return false;
+	            	}
+
+		            //dig to the main result of the response
+		            var data = json['s:Envelope']['s:Body']['RetrieveMessageResponse']['RetrieveMessageResult']['a:MessageResult'];
+		            
+		            //lock and save
+		            _string.lock(data, guid);
+
+		            //get the saved local storage and show it
+		            window.messages.displayDetail(data, type, guid, unread);
+		    		
+		    		return false;
+		    	}
+
 		    });  
 		}); 	
 	},
@@ -363,6 +395,7 @@ Messages.prototype = {
 			var minus		= 7;
 			var today 		= new Date();
    			var rawLastWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - minus);
+   			//var rawLastWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
    			var lastWeek 	= $.format.date(rawLastWeek, "yyyy-MM-ddThh:mm:ss");
    			
 			var results 	= soapResponse.toString();	
@@ -406,8 +439,8 @@ Messages.prototype = {
 		        '</soapenv:Envelope>'];
 
 		    //do ajax SOAP call    
-			_SOAP.post('RetrieveMessages', xml, function(soapResponse) { 
-				results = soapResponse.toString(); 
+			_SOAP.post('RetrieveMessages', xml, function(soapResponse) {  
+				results = soapResponse.toString();  
 	            json 	= $.xml2json(results);
 
 	            //if has error
@@ -532,9 +565,17 @@ Messages.prototype = {
 	            window.messages.displayMessage(raw, type, start, end, 1);
 			});    
 		});
-
 	},
 	displayDetail : function(data, type, guid, unread) { 
+
+		if(type != 'Deleted') {
+			//show delete button in detail page
+			$('#delete-message').show();
+		//else if in delete page	
+		} else {
+			//show undelete button in detail page
+			$('#undelete-message').show();
+		}
 
 		$('.no-connection').hide();
 
@@ -603,7 +644,7 @@ Messages.prototype = {
  			emptySubject = true;
  			data['b:Label']['b:Subject'] = 'Empty Subject';
  		}
-
+ 		//console.log(data['b:Content']);
  		//MESSAGE CONTENT
  		$('#detail-content').html(data['b:Content'].replace(/\n/g, "<br />"));
  		//MESSAGE SUBJECT
@@ -645,8 +686,9 @@ Messages.prototype = {
 		}
 
  		//reply all button
+ 		
  		//$('#detail-reply-all').unbind().click(function(e) {
- 		$('#detail-reply-all').bind('tap', function(e) {	
+ 		$('#detail-reply-all').one('tap', function(e) {	
  			if(emptySubject == true) {
  				data['b:Label']['b:Subject'] = '';
  			}
@@ -655,15 +697,16 @@ Messages.prototype = {
 
  			e.stopPropagation();
 			e.preventDefault();
- 			compose();
+ 			compose(true);
+ 			
  			window.messages.replyAll(data, 'replyAll');
 
  			return false;
  		});
 
  		//reply button
- 		//$('#detail-reply').unbind().click(function(e) {
- 		$('#detail-reply').bind('tap', function(e) {
+ 		//$('#detail-reply-single').one().click(function(e) {
+ 		$('#detail-reply').one('tap', function(e) {
 			
  			if(emptySubject == true) {
  				
@@ -672,16 +715,18 @@ Messages.prototype = {
  			
  			$(this).attr('isClick', 'true');
 
- 			e.stopPropagation();
-			e.preventDefault();
- 			compose();
+ 			//e.stopPropagation();
+			//e.preventDefault();
+ 			compose(true);
+
  			window.messages.replyAll(data, 'reply');
+ 			
  			return false;
  		});
 
  		//forward button
  		//$('#detail-forward').unbind().click(function(e) {
- 		$('#detail-forward').bind('tap', function(e) {	
+ 		$('#detail-forward').one('tap', function(e) {	
  			if(emptySubject == true) {
  				data['b:Label']['b:Subject'] = '';
  			}
@@ -690,24 +735,26 @@ Messages.prototype = {
 
  			e.stopPropagation();
 			e.preventDefault();
- 			compose();
+ 			compose(true);
+
  			window.messages.forward(data);
  			return false;
  		});
  		
  		//delete message
  		//$('#delete-message').unbind().click(function(e) {
- 		$('#delete-message').bind('tap', function(e) {	
+ 		$('#delete-message').one('tap', function(e) {	
+ 			var id = $('#detail-guid').val();
  			e.stopPropagation();
 			e.preventDefault();
 			
- 			window.messages.delete(guid, type);
+ 			window.messages.delete(id, type);
  			return false;
  		});
 
  		//undelete message
 		//$('#undelete-message').unbind().click(function(e) {
-		$('#undelete-message').bind('tap', function(e) {		
+		$('#undelete-message').one('tap', function(e) {		
  			e.stopPropagation();
 			e.preventDefault();
 			
@@ -722,7 +769,6 @@ Messages.prototype = {
 		var row = MESSAGE_ROW;
 		var list = '';
 		
-
 		//empty everything
 		$('#message-list').html('');
 		$('#message-archive').html('');
@@ -805,7 +851,8 @@ Messages.prototype = {
 							for(x in messageList[i]['b:Recipients']['b:Recipient']) {
 								//and make HTML format
 								toName = messageList[i]['b:Recipients']['b:Recipient'][x]['b:m_Receiver']['c:Name']['d:m_firstName']+' '+messageList[i]['b:Recipients']['b:Recipient'][x]['b:m_Receiver']['c:Name']['d:m_lastName'];	
-								toUser += ' <span class="gray m-l-25">'+toName+'</span><br />';
+								toUser += ' <span class="gray m-l-25">'+toName+'</span> ...';
+								break;
 							}
 						//otherwise if only one recipient	
 						} else {
@@ -824,7 +871,7 @@ Messages.prototype = {
 					}
 
 					if(toUser.length == 0) {
-						toUser = 'Empty<';
+						toUser = 'Empty';
 					}
 
 					$("#message-list").show();
@@ -888,10 +935,9 @@ Messages.prototype = {
 
 		$('#wrapper').show();
 
-		populateArchive2(ids);
-		
+		populateArchive2(ids);		
 	},
-	pullDown : function(messageList,type, start, end) {
+	pullDown : function(messageList,type, start, end, fromDelete) {
 		
 		var row 		= MESSAGE_ROW;
 		//var i 			= start;
@@ -899,7 +945,30 @@ Messages.prototype = {
 		var list 		= '';
 		var ids 		= [];
 
-		if(messageList.length < start) {
+		if(messageList != null && messageList.length < 20) {
+			//$('#pullUp').hide();
+		} else {
+			//$('#pullUp').show();	
+		}
+
+		if(messageList == null || messageList.length < start) {
+			
+			if(typeof fromDelete !== 'undefined') {
+				var id = [];
+
+				$('#message-list .go-detail').each(function() {
+					id.push($(this).attr('id'));
+				});
+
+				if(id.length == 0 || id.length == 1) {
+					//this.animateList('stop', type);
+					var ids = [];
+					
+					$("#message-list").html(EMPTY);
+				}
+			}
+
+
 			return false;
 		}
 
@@ -954,7 +1023,8 @@ Messages.prototype = {
 						for(x in messageList[i]['b:Recipients']['b:Recipient']) {
 							//and make HTML format
 							toName = messageList[i]['b:Recipients']['b:Recipient'][x]['b:m_Receiver']['c:Name']['d:m_firstName']+' '+messageList[i]['b:Recipients']['b:Recipient'][x]['b:m_Receiver']['c:Name']['d:m_lastName'];	
-							toUser += ' <span class="gray m-l-25">'+toName+'</span><br />';
+							toUser += ' <span class="gray m-l-25">'+toName+'</span> ...';
+							break;
 						}
 					//otherwise if only one recipient	
 					} else {
@@ -1196,31 +1266,32 @@ Messages.prototype = {
 					//unsent sent item so it can load again
 					localStorage.setItem('Sent', '');
 					
-					var clicked = false;
+					//check if previous page is detail page
+	  				if(fromDetailPage()) {
+			  			return false;
+			  		}
 
-					$('.detail-button-group').each(function() {
-						
-						if($(this).attr('isClick') == 'true') {
-							clicked = true;
-						}
-					});
+					var parentPage 	= $('ul.nav-stacked li.active a.left-navigation').attr('id');
 					
-					if(clicked == 'true') {
-						//window.messages.getDetail(id, type, unread);
-					} else {
-						var parentPage 	= $('ul.nav-stacked li.active a.left-navigation').attr('id');
+					//if  page is from settings
+					if(parentPage == 'Settings') {
 						
-						//if  page is from settings
-						if(parentPage == 'Settings') {
-							
-							//show message settings page 
-							settings();
+						//show message settings page 
+						settings();
 
-							return false;
-						}
-
-						window.messages.get(parentPage, 15, 1);
+						return false;
 					}
+
+					// page is outbox
+					if(parentPage == 'Outbox') {
+						
+						outbox();
+
+				  		return false;
+			  		}
+
+					window.messages.get(parentPage, 15, 1);
+					
          		} else {
          			notification('Message not send');
          		}
@@ -1410,6 +1481,30 @@ Messages.prototype = {
 
 					notification('Message successfully saved');
 					localStorage.setItem('Draft', '');	
+
+					//check if previous page is detail page
+	  				if(fromDetailPage()) {
+			  			return false;
+			  		}
+
+					var parentPage 	= $('ul.nav-stacked li.active a.left-navigation').attr('id');
+					
+					//if  page is from settings
+					if(parentPage == 'Settings') {
+						
+						//show message settings page 
+						settings();
+
+						return false;
+					}
+
+					// page is outbox
+					if(parentPage == 'Outbox') {
+						
+						outbox();
+
+				  		return false;
+			  		}
 
 					//go back to Inbox
 					window.messages.get('Inbox', 10, 1);
@@ -1720,7 +1815,7 @@ Messages.prototype = {
 
 		$('#compose-subject').val('Re: '+ messageSubject);
 		$('#compose-content').val(messageBody);
-
+		
 		//on click compose
 		$('#process-send').unbind().click(function() {
 			
@@ -1933,17 +2028,14 @@ Messages.prototype = {
 	           
 	            //throw message that the message is deleted
 	           //	notification('Message deleted');
-	           	
-         		//get local Storage data
+	           	//get local Storage data
 	           	var data 	= _string.unlock(type);
 	           	var data2 	= _string.unlock('Deleted');
          		var newData = [];
 
          		//now remove the message to the local storage
          		for(i in  data) {
-
          			if(data[i]['b:MessageGUID'] != guid){
-
          				newData.push(data[i])
          			} else {
          				//only add if deleted message is already loaded
@@ -1956,20 +2048,58 @@ Messages.prototype = {
          		}
          		
          		_string.lock(newData, type);
-         		
+         	
 	           	var currentPage = $('.current-page').attr('id');
 	        	
-	        	if(currentPage == 'home') {
+	        	if(currentPage == 'home' || currentPage == 'list') {
 					$('#'+guid).hide();
 					$('#delete_'+guid).hide();
-					addOne()
+					var deleteBar = $('#delete-bar').css('display')
+		
+					if(deleteBar == 'block') {
+				
+						$('#message-list').css('pointer-events', 'all');
+						$('#message-archive').css('pointer-events', 'all');
+						window.tapSelected 	= ''
+						window.tapHold 		= false;
+						
+						//find the selected
+						$('#message-list .go-detail').each(function() {
+							//get the background color
+							var color = rgb2hex($(this).css('background-color'));
+							
+							//if found selected message list
+							if(color == '#81b9cc') {
+								//put back the color depending if messages
+								//is read or unread
+								if($(this).attr('unread') == 'true') {
+									$(this).css('background-color', 'white');
+								} else {
+									$(this).css('background-color', '#f7f7f7');
+								}
+							}
+						});
+					}
+					//toggle navbar
+					$('#main-bar').show();
+					$('#delete-bar').hide();
+
+					pullUpAction(1, 1);
 				} else {
+
 					var next = $('#'+guid).next().attr('id');
+					
+					console.log(next);
+					
+					$('#detail-guid').val(next);
+					
 					//if end of the list
 					if(typeof next === 'undefined') {
+						console.log(type);
 						//we jsut go back to the listing
 						window.startCount = 10;
 						window.messages.get(type,15,1);	
+						
 					//go to the next message detail				
 					} else {
 						
@@ -1994,8 +2124,9 @@ Messages.prototype = {
 							$('#'+next).css('font-weight', 'none');
 							
 						}
-
+						mainLoader('stop')
 						window.messages.getDetail(next, type, unread);	
+						
 					}	
 				}
 
@@ -2146,6 +2277,7 @@ Messages.prototype = {
 
          		//if there is a new message
          		if(typeof data !== 'undefined') { 
+         			
          			//if there is multiple data
          			if(typeof data === 'object' && typeof data[0] !== 'undefined') { 
          				

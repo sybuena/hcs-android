@@ -20,6 +20,7 @@
 		}
 		try {
 			if (window.DOMParser) { // Standard
+
 				tmp = new DOMParser();
 				xml = tmp.parseFromString(data, "text/xml");
 			} else { // IE
@@ -29,7 +30,8 @@
 			}
 		} catch (e) {
 			xml = undefined;
-		}
+		} 
+		
 		if (!xml || !xml.documentElement || xml.getElementsByTagName("parsererror").length) {
 			throw new Error("Invalid XML: " + data);
 		}
