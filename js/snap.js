@@ -317,6 +317,7 @@
                     if(cache.startDragX > 50) {
                         return;
                     }
+
                     if (cache.isDragging && settings.touchToDrag) {
 
                         var thePageX = utils.page('X', e),
@@ -382,7 +383,7 @@
                         }
 
                         if (openingLeft) {
-                            window.sidebar.refresh();
+                            
                            $('#backdrop').show();
                             // Pulling too far to the right
                            if (settings.maxPosition < absoluteTranslation) {

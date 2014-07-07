@@ -7,7 +7,7 @@ window.interval = localStorage.getItem('interval');
 if(window.url == null || window.url == '') { 
 
 	//default value of SOAP URL
-	window.url = 'https://webapp.healthcaresynergy.com:8002/demoalpha/CaregiverPortalMobile/CaregiverPortalService.svc';
+	window.url = 'https://webapp.healthcaresynergy.com:8002/demoalpha/CaregiverPortalMobile/CaregiverPortalService.svc?singleWsdl';
 	
 	localStorage.setItem('url', window.url);
 }
@@ -59,9 +59,19 @@ window.connection 		= true;
 window.keyboard 		= false;
 window.tapHold 			= false;
 window.tapSelected 		= '';
+window.swipeDelete 		= '';
+window.minLength  		= 20;
+window.unreadInbox 		= 0;
 
 function bind() { 
-	
+	//calculate screen height
+	var height 			= $(window).height();
+	var defaultheight   = parseInt(height) - 40;
+	window.minLength 	= Math.round((height - 50) / 75) + 10;
+
+	//add default min height to the message listing
+	$('#message-list').css('min-height', defaultheight+'px');
+
 	//get the login user data
 	var loginUser = window.user.get();
 
@@ -73,11 +83,13 @@ function bind() {
   	} else {
   		
   		//only add event listener to DOM if user is login
-		document.addEventListener('DOMContentLoaded', function () { 
+		setTimeout(function() {
+			//build scroller, add listener to the
+			//scroller behavior
+			buildListing();
 
-			setTimeout(loaded, 200); 
-			
-		}, false);
+		}, 200);
+		
 
 		//get the login username
 		var name = loginUser.sender['c:Name']['d:m_firstName']+' '+loginUser.sender['c:Name']['d:m_lastName'];
@@ -117,6 +129,39 @@ function bind() {
 			$(this).css('background-color', '#2c3e50');
 		});
 
+		//$('#message-compose').slimScroll({height: 'auto'});
+		$('#message-detail').slimScroll({height: 'auto'});
+		
+		NProgress.configure({
+			parent 		: '#wrapper',
+			showSpinner : false,
+			speed 		: 1000
+		});
+
+		//undo delete swipe event
+		$('#delete-icon').swipe({
+			swipeStatus : function(event, phase, direction, distance, fingers) {
+				//on tap undo icon
+				if(phase == 'start') {
+					$(this).css('background-color', '#81b9cc');
+				//on move undo icon
+				} else if(phase == 'move') {
+					$(this).css('background-color', '#ccc');
+				}
+
+				//on tap up icon
+				if(phase == 'cancel') {
+					//undo delete
+					$('#'+window.swipeDelete).removeClass('delete-wait');
+					$('#delete-undo').hide();
+					$('#delete-undo').css('z-index', '0');
+					$('.go-detail').css("-webkit-transform", "translate3d(0px,0px,0px)");
+					
+					$(this).css('background-color', '#ccc'); 
+				}
+				
+			}	
+		});
   		//get contact list
   		window.contactList = window.users = _string.unlock('contactList');
 
@@ -127,10 +172,12 @@ function bind() {
 		});
 
   		//count unread message in inbox
-		window.messages.countFolder('Inbox');
+		//window.messages.countFolder('Inbox');
 		
 		//get INBOX
-  		window.messages.get('Inbox', 20, 0);
+  		window.messages.get('Inbox', window.minLength, 0);
+
+ 		displayCounter();
 
   		//show main page
   		mainPage(window.snapper,loginUser);
@@ -190,370 +237,37 @@ function init() {
 	});
 }
 
-function populateArchive(ids) { 
-	setTimeout(loaded, 200);
+function getDetail(id, unread, type) {
 	
-	setTimeout(function() {
-		var currentId;
-		var counter = 0;	
-		
-		for(i in ids) {
-			var height = $("#"+ids[i]).css('height');
-			
-			if(currentId != ids[i]) {	
-				$('#message-archive').append(
-					'<div id="delete_'+ids[i]+'" class="row" style="height:'+height+'">'+
-		            '<div class="delete-swipe col-xs-6 col-sm-6 pull-right">'+
-		            '<a href="#" onclick="deleteSwipe.call(this,event)" id="'+ids[i]+'"><i class="fa fa-trash-o fa-2x center-swipe"></i></a>'+
-		            '</div></div>');
-			}
+	//check if message is unread
+	if(unread == 'true') {
+		//count the current unread message
+		window.unreadInbox = parseInt(window.unreadInbox) - 1;
 
-			counter++;
-			var currentId = ids[i];
-		}
-		
-	}, 200);
-}
+		displayCounter(true);
+	}
 
-function populateArchive2(ids) {
-	setTimeout(loaded, 200);
+	//prepare UI for detail page
+	$('#message-detail').hide();
+	$('.message-elem').hide();
 	
-	setTimeout(function() {
+	//main loading
+	mainLoader('start');
 
-		var currentId;
-		var counter = 0;	
-		
-		$('#message-list').children().each(function() {
+	//and put it sa hidden input 
+	$('#detail-guid').val(id);
 
-			var id = $(this).attr('id');
-
-			//dont process if there is no GUID on the message listing
-			if(typeof id !== 'undefined') {
-				var height = $("#"+id).css('height');
-				
-				var deleteSwipe = $('#delete_'+id).css('height');
-				
-				//if ID is still not i the list
-				//prevent duplicate
-				if(typeof deleteSwipe === 'undefined') {
-					$('#message-archive').append(
-						'<div id="delete_'+id+'" class="row" style="height:'+height+'">'+
-			            '<div onclick="deleteSwipe.call(this,event)" id="'+id+'" class="delete-swipe col-xs-6 col-sm-6 pull-right">'+
-			            '<p><i class="fa fa-trash-o fa-2x center-swipe"></i></p>'+
-			            '</div></div>');
-				}
-			}
-		});
-	}, 200);	
-}	
-
-function deleteSwipe(e) {
-	$('#message-archive').attr('isOpen', 'true');
-	
-	var guid = $(this).attr('id');
-	var type 	= $('ul.nav-stacked li.active a.left-navigation').attr('id');
-	
-	window.messages.delete(guid, type);
-	
-	window.snapper.enable();
+	//do ajax call and show detail page
+	//if message detail is already saved it 
+	//the local storage, then just get the saved
+	//local data but if not saved then make 
+	//SOAP request to get message datail and save 
+	//to local storage
+	window.messages.getDetail(id, type, unread);
 
 	return false;
 }
 
-function swipeDelete(uid) {
-
-	//make this guys always unique
-	$('#'+uid).swipe({
-		triggerOnTouchEnd 	: true,
-		triggerOnTouchLeave : true,
-		allowPageScroll 	: 'vertical',
-		swipeStatus 		: function(event, phase, direction, distance, fingers) {
-			//get the GUID pf the current div
-			var id 		= $(this).attr('id');
-			var width 	= parseInt($(this).css('width'))/5;
-			
-			//disable click on all child of archive 
-			$('#message-archive .delete-swipe a').css('pointer-events', 'none');
-			//enable specific click
-			$('#message-archive #delete_'+id+' .delete-swipe a').css('pointer-events', 'all');
-			
-			//done process if drag up or down
-			if(direction != 'up' && direction != 'down' && direction != 'right') {
-				
-				//If we are moving before swipe, and we are going L or R, then manually drag the images
-				if(phase == "move" && direction == "left") {
-					//unset all div 1st
-					$('.go-detail').css("-webkit-transform", "translate3d(0px,0px,0px)");
-					
-					var duration = 0;
-
-					//if swipe to the left
-					if(direction == "left") {
-						swipelisting((defaultWidth * currentImg) + distance, duration, id, direction, phase);
-					//else it is to the right
-					} else if (direction == "right") {
-						//swipelisting((defaultWidth * currentImg) - distance, duration, id, direction, phase);
-					}	
-				//else, cancel means snap back to the begining
-				} else if (phase == "cancel") {
-					//swipelisting(defaultWidth * currentImg, speed, id, direction, phase);
-					swipelisting((defaultWidth * currentImg) + distance, speed, id, direction, phase);	
-				//else end means the swipe was completed, so move to the next image
-				} else if (phase == "end" ) {
-					//on touch end
-					swipelisting((defaultWidth * currentImg) + distance, speed, id, direction, phase);	
-				}
-			//on dragging up or down	
-			} else {
-				$('#message-list').css('pointer-events', 'all');
-				//unset all div in listing
-				$('.go-detail').css("-webkit-transform", "translate3d(0px,0px,0px)");
-				console.log(direction);
-				if(direction == 'left') {
-					//enable dragging left panel
-					window.snapper.enable();
-				}
-				
-			}
-		},
-		
-	}); 
-}
-
-/**
- * Manually update the position of the div on drag
- *
- */
-function swipelisting(distance, duration, id, direction, phase) { 
-	
-	var value 	= (distance < 0 ? "" : "-") + Math.abs(distance).toString();
-	//get the width of the current div then divided by two as limit
-	var limit 	= (parseInt($('#'+id).css('width')) / 2);
-	var width 	= (parseInt($('#'+id).css('width')) / 4);
-
-	if(phase == 'start') {
-	
-		//$('#delete_'+id).show();
-		$('#message-list').css('pointer-events', 'all');
-		$('.go-detail').css("-webkit-transition-duration", (duration/1000).toFixed(1) + "s");
-		//slide to the limit
-		$('.go-detail').css("-webkit-transform", "translate3d(-"+limit+"px,0px,0px)");
-		//on touch end or leave
-	} else if(phase == 'end') {
-
-		$('#message-list').css('pointer-events', 'all');
-		//animate
-		$('#'+id).css("-webkit-transition-duration", (duration/1000).toFixed(1) + "s");
-		//if less than limit
-		if(Math.abs(value) < width) {
-			//enable left sidebar
-			window.snapper.enable();
-			
-			//slide to the beginning
-			$('#'+id).css("-webkit-transform", "translate3d(0px,0px,0px)");
-		//if hit the limit
-		} else {
-			
-			//slide to the limit
-			$('#'+id).css("-webkit-transform", "translate3d(-50%,0px,0px)");
-			//prevent click 
-			$('#message-list').css('pointer-events', 'none');
-			//disable dragging left panel
-			window.snapper.disable();
-		}
-
-	} else if(phase == 'cancel'){
-
-		$('#'+id).css("-webkit-transition-duration", (duration/1000).toFixed(1) + "s");
-		$('#'+id).css("-webkit-transform", "translate3d(0px,0px,0px)");
-		//enable left panel
-		window.snapper.enable();
-
-	} else {
-		$('#message-list').css('pointer-events', 'all');
-		//animate
-		$('#'+id).css("-webkit-transition-duration", (duration/1000).toFixed(1) + "s");
-		//follow the touch event in div
-		$('#'+id).css("-webkit-transform", "translate3d("+value +"px,0px,0px)");
-		//console.log(value);
-		//$('#d_'+id).css('width', Math.abs(value)++);
-		window.snapper.enable();
-
-		$('#message-list').css('pointer-events', 'all');	
-	} 
-};
-
-function pullDownAction () {
-	
-	//get the active listing
-	var type = $('ul.nav-stacked li.active a.left-navigation').attr('id');
-	
-    //now make request to backend
-    window.messages.checkInbox(type, 1);
-				
-	window.messageList[type] = _string.unlock(type);			
-}
-
-function addOne() {
-	
-	var type 			= $('ul.nav-stacked li.active a.left-navigation').attr('id');
-	var end 			= window.startCount;
-	window.startCount 	= window.startCount + 1;
-	
-	window.messages.pullDown(window.messageList[type], type, window.startCount, end);	
-	
-	//Remember to refresh when contents are loaded (ie: on ajax completion)
-	window.iscroll.refresh();		
-	//On click message listing then load message detail
-	//base on Message GUID
-	onClickDetail(type);	
-}
-
-function pullUpAction (count, fromDelete) {
-	
-	var type 			= $('ul.nav-stacked li.active a.left-navigation').attr('id');
-	var end 			= window.startCount;
-	window.startCount 	= window.startCount + count;
-	
-	window.messages.pullDown(window.messageList[type], type, window.startCount, end, fromDelete);	
-	//$(".list-title").shorten();
-	//Remember to refresh when contents are loaded (ie: on ajax completion)
-	window.iscroll.refresh();		
-	//On click message listing then load message detail
-	//base on Message GUID
-	onClickDetail(type);	
-}
-
-/**
- * Core method on pulling message listing
- * lets go navite javascript
- *
- */
-function loaded() {
-
-	if($.isEmptyObject(window.iscroll) || typeof window.iScroll === 'undefined') {
-		
-		var pullDownEl 		= document.getElementById('pullDown');
-		var pullDownOffset 	= pullDownEl.offsetHeight;
-		var pullUpEl 		= document.getElementById('pullUp');	
-		var pullUpOffset 	= pullUpEl.offsetHeight;
-		var option 			= {
-			useTransition 	: true,
-			topOffset 		: pullDownOffset,
-			onRefresh 		: function () {
-				if (pullDownEl.className.match('loading')) {
-					pullDownEl.className = '';
-					pullDownEl.querySelector('.pullDownLabel').innerHTML = '';
-				} else if (pullUpEl.className.match('loading')) {
-					pullUpEl.className = '';
-					pullUpEl.querySelector('.pullUpLabel').innerHTML = '';
-				}
-			},
-			onScrollStart : function(e) {
-				$('.go-detail').css("-webkit-transition-duration", 1 + "s");
-				$('.go-detail').css("-webkit-transform", "translate3d(0px,0px,0px)");
-				//$('#message-list').css('pointer-events', 'all');
-				//$('#message-list').css('pointer-events', 'all');
-				//hide mobile keyboard
-				hideKeyboard();
-				
-			},
-			onScrollMove 	: function (e) {
-				
-				//$('.go-detail').css("-webkit-transform", "translate3d(0px,0px,0px)");
-				//check where page we are
-				var currentPage = $('.current-page').attr('id');
-
-				//disable left sidebar if inside compose page
-				if(currentPage != 'compose') {
-					
-					window.snapper.enable();
-				} 
-					
-				$('#message-list').css('pointer-events', 'all');
-				
-				if(this.y > 5 && !pullDownEl.className.match('flip')) {
-					
-					$('#pullDown').show();
-					
-					$('#message-archive').css('margin-top', '45px');
-
-					pullDownEl.className = 'flip';
-					this.minScrollY = 0;
-
-				} else if (this.y < 5 && pullDownEl.className.match('flip')) {
-
-					pullDownEl.className = '';
-					this.minScrollY = -pullDownOffset;
-				
-				} else if (this.y < (this.maxScrollY - 5) && !pullUpEl.className.match('flip')) {
-				
-					pullUpEl.className = 'flip';
-					this.maxScrollY = this.maxScrollY;
-					
-				} else if (this.y > (this.maxScrollY + 5) && pullUpEl.className.match('flip')) {
-					
-					pullUpEl.className = '';
-					this.maxScrollY = pullUpOffset;
-				}
-
-				
-			},
-			onScrollEnd 	: function () {
-				//check where page we are
-				var currentPage = $('.current-page').attr('id');
-				//do nothing if we are in compose page
-				if(currentPage == 'compose') {
-					return false;
-				}
-				console.log(Math.abs(this.y));	
-				if(this.y == '-0') {
-					pullDownEl.className = 'loading';		
-					
-					//check messages on pull down
-					setTimeout(function() {
-						pullDownAction();	
-					}, 500);
-					
-				} else if (pullDownEl.className.match('flip')) {
-
-					pullDownEl.className = 'loading';		
-					
-					//check messages on pull down
-					setTimeout(function() {
-						pullDownAction();	
-					}, 500);
-					
-				//on pull up release		
-				} else if (pullUpEl.className.match('flip')) {
-					pullUpEl.className = 'loading';
-					//pagination loading			
-					//addOne();
-					pullUpAction(10);	
-				//only trigger on pull up	
-				} else if(Math.abs(this.y) < 46){
-
-					$('#wrapper').children().css('-webkit-transform','translate(0px, -48px) scale(1) translateZ(0px)');
-				}
-			}
-		}
-		
-		//execute message listing
-		window.iscroll = new iScroll('wrapper', option);
-		
-		window.sidebar = new iScroll('sidebar', {bounce : false});
-
-		
-		//no rubber band effect
-		window.messageDetail = new iScroll('message-detail', {bounce : false});
-		
-		//no rubber band effect
-		/*window.composePage = new iScroll('message-compose', {
-			useTransition 			: true,
-			bounce 					: false
-		});*/
-	}
-}
 
 /**
  * Check outbox and if found items on it,
@@ -586,184 +300,8 @@ function checkOutbox() {
 
 	//empty out Outbox in local storage
 	localStorage.setItem('Outbox', '');
-
 }
 
-/*
- * Click event on message in listing
- * (this must be touchstart)
- *
- */
-function onClickDetail(type) {
-
-	$('.delete-message-list').bind('tap', function(e) { 
-		
-		$('#message-archive').attr('isOpen', 'true');
-	
-		var guid = window.tapSelected;
-
-		var type 	= $('ul.nav-stacked li.active a.left-navigation').attr('id');
-	
-		window.messages.delete(guid, type);
-	
-		window.snapper.enable();
-		window.iscroll.enable();
-
-		return false
-		
-	});
-
-	$('#cancel-select').bind('tap', function(e) { 
-		
-		$('#message-list').css('pointer-events', 'all');
-		$('#message-archive').css('pointer-events', 'all');
-		window.tapSelected 	= ''
-		window.tapHold 		= false;
-		window.iscroll.enable();
-		window.snapper.enable();
-
-		//find the selected
-		$('#message-list .go-detail').each(function() {
-			//get the background color
-			var color = rgb2hex($(this).css('background-color'));
-			
-			//if found selected message list
-			if(color == '#81b9cc') {
-				//put back the color depending if messages
-				//is read or unread
-				if($(this).attr('unread') == 'true') {
-					$(this).css('background-color', 'white');
-				} else {
-					$(this).css('background-color', '#f7f7f7');
-				}
-			}
-		});
-		//toggle navbar
-		$('#main-bar').show();
-		$('#delete-bar').hide();
-
-	});
-
-	
-
-	$('#message-list .go-detail').on('touchstart', function(e){ 
-		
-		//$(this).css('background-color', '#81B9CC !important');
-		
-	}).on('touchend', function(e){
-		
-		/*var unread 	= $(this).attr('unread');
-
-		if(unread == 'true') {
-			$(this).css('background-color', 'white');
-		} else {
-			$(this).css('background-color', '#f7f7f7');
-		}*/
-
-	}).on('touchmove', function(e){ 
-		var deleteBar = $('#delete-bar').css('display')
-		
-		if(deleteBar == 'block') {
-			window.snapper.disable();	
-		} else {
-			window.snapper.enable();	
-		}
-
-	}).on('taphold', function(e){ 
-		var parentPage 	= $('ul.nav-stacked li.active a.left-navigation').attr('id');
-		
-		if(parentPage != 'Deleted' && parentPage !== 'Outbox') {
-			var selected = false;
-
-			//check firs if there is already selected
-			$('#message-list .go-detail').each(function() {
-				//get the background color
-				var color = rgb2hex($(this).css('background-color'));
-				
-				//if found selected message list
-				if(color == '#81b9cc') {
-					selected = true;
-				}
-			});	
-
-			if(!selected) {
-				var id = $(this).attr('id');
-
-				window.tapSelected = id;
-				window.tapHold = true;
-				window.snapper.disable();
-				window.iscroll.disable();
-
-				$('#message-list').css('pointer-events', 'none');
-				$('#message-archive').css('pointer-events', 'none');
-				$('#main-bar').hide();
-				$('#delete-bar').show();
-
-				$(this).css('background-color', '#81B9CC');
-				
-			}
-		}
-	});
-	
-	//on tap message in listing
-	$('.go-detail').bind('tap', function(e) {
-		
-		//$(this).css('background-color', '#81B9CC');
-		if(window.tapHold) {
-			return false;
-		}
-
-		//prevent double click
-		e.stopPropagation();
-		e.preventDefault();
-		
-		
-		//get the GUID of the message
-		var id 		= $(this).attr('id');
-		var unread 	= $(this).attr('unread');
-		
-		//check if message is unread
-		if(unread == 'true') {
-			//count the current unread message
-			var count = $('#Inbox span.badge').html();
-			//only process if there is unread message	
-			if(count != 0) {
-				//do the math
-				var plus = parseInt(count) - 1;
-
-				$('#Inbox span.badge').html(plus);
-				$('#folder-name').html($('#Inbox').html());
-				setBadge(plus);
-				
-			}
-
-			$(this).css('background-color', '#E4E4E4');
-			$(this).css('font-weight', 'none');
-
-			removeNotification(id);
-		}
-
-		//prepare UI for detail page
-		$('#message-detail').hide();
-		$('.message-elem').hide();
-		
-		//main loading
-		mainLoader('start');
-
-		//and put it sa hidden input 
-		$('#detail-guid').val(id);
-
-		//do ajax call and show detail page
-		//if message detail is already saved it 
-		//the local storage, then just get the saved
-		//local data but if not saved then make 
-		//SOAP request to get message datail and save 
-		//to local storage
-		window.messages.getDetail(id, type, unread);
-
-		return false;
-	});	
-}
 
 /**
  * This guy will run checkInbox function every 
@@ -792,8 +330,6 @@ function checkInbox() {
 	//}, localStorage.getItem('interval')*60000);
 	}, timer);
 }
-
-
 
 function processSendAgain(guid) {
 
@@ -901,7 +437,11 @@ function processSend(guid) {
  *
  * @return false;
  */
-function compose(detail) { 	
+function compose() { 	
+	
+	$('.slimScrollDiv').hide();
+	$('.slimScrollDiv').has('#message-compose').show();
+
 	//disable left sidebar if in compose page
 	window.snapper.disable();
 	
@@ -957,30 +497,6 @@ function compose(detail) {
 			replace('[NAME]', window.contactList[i].name));
 		
 	}
-		$('#message-compose').slimScroll({
-		    height: 'auto',
-		    start : 'bottom'
-		});
-
-	if(detail) {
-		var height = $('#message-compose')[0].scrollHeight;
-		$('#compose-content').val('');
-		$('#compose-content').focus();
-		$('#message-compose').slimScroll({ scrollTo: height+'px' });
-	} else {
-		$('.ui-filterable input').val('');
-		$('.ui-filterable input').focus();
-		$('#message-compose').slimScroll({ scrollTo: '0px' });
-	}
-	
-	//var height = $('#message-compose')[0].scrollHeight;
-	
-	//$('#message-compose').children().children().css('height', height+'px');
-
-	
-	
-
-	//window.composePage.refresh();	
 
 	//on typing in To field
 	$('.contact-pick').click(function() {
@@ -1017,10 +533,6 @@ function compose(detail) {
 	    	);
 		}
 
-		//refresh page
-		/*setTimeout(function(){window.composePage.refresh();
-		console.log('xxx');}, 1000)*/
-
 		return false;
 	});
 }
@@ -1034,6 +546,10 @@ function compose(detail) {
  * @param string message type
  */
 function composeWith(data, type) {
+	
+	$('.slimScrollDiv').hide();
+	$('.slimScrollDiv').has('#message-compose').show();
+
 	//disable left sidebar if in compose page
 	window.snapper.disable();
 	
@@ -1236,6 +752,7 @@ function outbox() {
  * @return bool 
  */
 function settings() {
+	$('.slimScrollDiv').hide();
 	$('#back-top').hide();
 	$('#sidebar-top').show();
 	$('#delete-message').hide();
@@ -1401,7 +918,7 @@ function mainPage(snapper, loginUser) {
 
 			//get message list according on what
 			//user clicked on the LI left panel
-	  		window.messages.get(type, 15, 1);
+	  		window.messages.get(type, window.minLength, 1);
   		}	
 
 		return false;
@@ -1417,6 +934,10 @@ function mainPage(snapper, loginUser) {
 		window.snapper.close();
 		//prepare compose fields
 		compose();
+
+		$('.ui-filterable input').val('');
+		$('.ui-filterable input').focus();
+		
 		//handle message sending
 		processSend(0);
 	}); 
@@ -1877,7 +1398,7 @@ function backEvent() {
  */
 document.addEventListener('touchmove', function (e) { 	
  	if(e.srcElement.type !== "textarea"){ 
-      //  e.preventDefault();
+       //e.preventDefault();
     } 
     
 }, false);
@@ -1957,29 +1478,27 @@ document.addEventListener('deviceready', function() {
   	
   	window.addEventListener('native.showkeyboard', function(e) {
 		window.keyboard = true;
+		
+		/*var height = $('#message-compose').css('height');
+		height = parseInt(height) + e.keyboardHeight;
+		//$('#message-compose').css('height', height+'px');
+		$('#message-compose').scrollTop(height);
+		var s = JSON.stringify(e);
+		alert(s);*/
 
-		if($('#compose-content').is(':focus')) {
-		    
-			var height 		= $('#message-compose')[0].scrollHeight;
-			var keyboard 	= e.keyboardHeight;
-			var newHeight 	= parseInt(height) + parseInt(keyboard);		
-	
-			$('#message-compose').slimScroll({ scrollTo: newHeight+'px' });
-	   	}
 	});
 
 	window.addEventListener('native.hidekeyboard', function(e) {
 		window.keyboard = false;
-		var keyboard 	= e.keyboardHeight;
-		var height 		= $('#message-compose').css('height');
-		var newHeight 	= parseInt(height) - parseInt(keyboard);
-		$('#message-compose').slimScroll({ scrollTo: '0px' });
-		
 	});
 
 	//if all DOM is loaded
 	$(document).ready(function(){
-	
+		
+		$(function() {
+		    FastClick.attach(document.body);
+		});
+
 		//do the responsive font size
 		$('body').flowtype({
 			 minimum   : 300,

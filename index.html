@@ -4,11 +4,13 @@
     <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
     <!--<meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, target-densitydpi=device-dpi" />
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">-->
-    <meta name="viewport" content="user-scalable=no, initial-scale=1, minimum-scale=1, width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="user-scalable=no, initial-scale=1, minimum-scale=1, width=device-width" />-->
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, target-densityDpi=device-dpi" />
   <title>HCS Messenger</title>
   <link rel="stylesheet" type="text/css" href="jmobile/css/jquery.mobile.flatui.css" />
   <link rel="stylesheet" href="boot/css/bootstrap.css" />
+  <link rel="stylesheet" href="lib/progress/nprogress.css" />
   <link rel="stylesheet" href="font-awesome/css/font-awesome.css" />
   <link rel="stylesheet" href="css/index.css" >
 
@@ -115,14 +117,6 @@
 
   <div class="navbar navbar-fixed-top navbar-custom display-none" id="delete-bar">
       <div class="navbar-inner">
-          <ul class="nav navbar-nav pull-left">
-              <li class="pull-left">
-                <a href="#" id="cancel-select">
-                  <i class="fa fa-times-circle-o fa-2x"></i>
-                </a>
-              </li>
-              
-          </ul>
           <ul class="nav navbar-nav pull-right">
               <li class="pull-left">
                 <!-- DELETE MESSAGE ICON -->
@@ -178,7 +172,7 @@
  
 
   <!-- START : CONTENT-->
-  <div id="content" class="page-content main-page">   
+  <div id="content" class="page-content main-page" style="padding-top: 50px">   
     <div id="backdrop" class="modal-backdrop"></div>
     <div class="current-page"></div>
 
@@ -205,31 +199,31 @@
     </div>
     
 
-    
-    <!-- MESSAGE LIST-->
-    <!--<div id="message-list" class="message-elem" data-scrollz="pull"></div>-->
-    <!--<div id="message-list" class="message-elem">
-    </div>-->
-    
-    <div id="wrapper" style="margin-top: 50px;" class="message-elem">
-      <div id="scroller">  
-        <!-- on pull down div -->
-        <div id="pullDown">
-          <span class="pullDownIcon"></span><span class="pullDownLabel"></span>
-        </div>
-        <!-- main message listing -->
-        <div id="message-list">
-        </div>
-        <!-- swipe right listing -->
-        <div id="message-archive" isOpen="false">
-        </div>
-        <!-- on pull up div -->
-        <div id="pullUp">
-          <span class="pullUpIcon"></span><span class="pullUpLabel"></span>
-        </div>
+    <div id="delete-undo" class="display-none">
+      <div class="pull-left" id="left-delete">
+        <h4>Deleted</h4>
+      </div> 
+      <div class="pull-right" id="delete-icon">
+        <span class="fa-stack fa-1x">
+        <i class="fa fa-undo 3x"></i>
 
+        </span>
+        <h5>Undo</h5>
       </div>
     </div>
+
+    <!-- MESSAGE LIST-->
+    <div id="wrapper" class="message-elem">
+      <div id="scroller">  
+      
+        <!-- main message listing -->
+        <div id="message-list" isRefresh="false">
+        </div>
+        <div class="pullUp">
+        </div>
+      </div>
+    </div>
+    
     <div id="error-parsing" class="display-none message-elem">
       <div class="empty-messages"><div class="icon-holder2"><i class="fa fa-warning fa-5x"></i><p class="event loading">Error loading message detail <br />(ASCII code error)</p></div></div>
     </div>
@@ -276,7 +270,7 @@
     </div> 
     
     <!--  COMPOSE -->
-    <div id="message-compose" class="message-elem display-none" style="height:100%;overflow : scroll;">
+    <div id="message-compose" class="message-elem display-none">
         <div>
         <!--<div class="compose-message-box error-label display-none"></div>-->
         
@@ -434,16 +428,19 @@
   <script type="text/javascript" src="js/jquery.autosize.min.js"></script>
   <script type="text/javascript" src="js/moment.min.js"></script>
   <script type="text/javascript" src="js/jquery.shorten.min.js"></script>
-  <script type="text/javascript" src="js/iscroll.js"></script>
+  
   <script type="text/javascript" src="js/flowtype.js"></script>
   <script type="text/javascript" src="js/touchSwipe.js"></script>
-  <script type="text/javascript" src="js/jquery.nicescroll.js"></script>
+  
   <script type="text/javascript" src="js/resize.js"></script>
+  
   <script type="text/javascript" src="js/jquery.scrollTo.min.js"></script>
+
   <script type="text/javascript" src="js/jquery.slimscroll.js"></script>
-  
-  
-  
+  <script type="text/javascript" src="lib/iscroll/iscroll-probe.js"></script>
+  <script type="text/javascript" src="lib/progress/nprogress.js"></script>
+  <script type="text/javascript" src="lib/fastclick/fastclick.js"></script>
+
   <script>
     $(document).bind("mobileinit", function() {
       $.support.cors = true;
