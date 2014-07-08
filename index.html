@@ -202,6 +202,7 @@
     <div id="delete-undo" class="display-none">
       <div class="pull-left" id="left-delete">
         <h4>Deleted</h4>
+        <div></div>
       </div> 
       <div class="pull-right" id="delete-icon">
         <span class="fa-stack fa-1x">
@@ -219,8 +220,7 @@
         <!-- main message listing -->
         <div id="message-list" isRefresh="false">
         </div>
-        <div class="pullUp">
-        </div>
+        
       </div>
     </div>
     
@@ -270,7 +270,7 @@
     </div> 
     
     <!--  COMPOSE -->
-    <div id="message-compose" class="message-elem display-none">
+    <div id="message-compose" class="message-elem display-none" style="height: 100%">
         <div>
         <!--<div class="compose-message-box error-label display-none"></div>-->
         
@@ -278,9 +278,10 @@
           <!-- compose to -->  
           <div class="form-group">
             <div class="col-sm-12">
-              <label>To : </label>
+              <!--<label>To : </label>-->
               <div class="warning-holder"></div>
               <div class="to-holder"></div>
+              <div class="to-holder-shrink display-none"></div>
               <div class="clearfix"></div>
               <ul id="compose-contact-list" data-role="listview" data-inset="true" data-filter="true" data-filter-reveal="true" data-filter-placeholder="Search contacts...">
               </ul>
@@ -290,15 +291,15 @@
           <!-- compose subject -->
           <div class="form-group">
             <div class="col-sm-12">
-              <label>Subject : </label>
-              <input type="text" class="" id="compose-subject" placeholder="Message Subject">
+              <!--<label>Subject : </label>-->
+              <input type="text" class="" id="compose-subject" placeholder="Message Subject ...">
             </div>
           </div>
 
           <!-- compose priority -->  
           <div class="form-group">
             <div class="col-sm-12">
-              <label>Priority : </label>
+              <!--<label>Priority : </label>-->
               <select class="" id="compose-important">
                 <option value="0">Normal</option>
                 <option value="1">High</option>
@@ -309,8 +310,8 @@
           <!-- compose content -->
           <div class="form-group">
             <div class="col-sm-12">
-              <label>Message : </label>
-                <textarea style="min-height: 200px" data-role="none" class="form-control" id="compose-content" placeholder="Message Content"></textarea>
+              <!--<label>Message : </label>-->
+                <textarea style="height: 50px;" data-role="none" class="form-control" id="compose-content" placeholder="Componse Message ..."></textarea>
                 
             </div>
           </div>
@@ -440,6 +441,7 @@
   <script type="text/javascript" src="lib/iscroll/iscroll-probe.js"></script>
   <script type="text/javascript" src="lib/progress/nprogress.js"></script>
   <script type="text/javascript" src="lib/fastclick/fastclick.js"></script>
+  <script type="text/javascript" src="lib/autosize/jquery.autosize.min.js"></script>
 
   <script>
     $(document).bind("mobileinit", function() {

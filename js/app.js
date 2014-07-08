@@ -130,6 +130,7 @@ function bind() {
 		});
 
 		//$('#message-compose').slimScroll({height: 'auto'});
+		
 		$('#message-detail').slimScroll({height: 'auto'});
 		
 		NProgress.configure({
@@ -431,6 +432,30 @@ function processSend(guid) {
 	});
 }
 
+function removeToLocal(guid, type) {
+	var data 	= _string.unlock(type);
+   	var data2 	= _string.unlock('Deleted');
+	var newData = [];
+		
+	//now remove the message to the local storage
+	for(i in  data) {
+		if(data[i]['b:MessageGUID'] != guid){
+			
+			newData.push(data[i])
+		} else {
+			
+			//only add if deleted message is already loaded
+			if(data2 !== null) {
+				//push to the beginning of the listing
+				data2.splice(0, 0, data[i]);
+				_string.lock(data2, 'Deleted');
+			}
+		}
+	}
+	
+	_string.lock(newData, type);
+	_string.lock(data2, 'Deleted');
+}
 
 /**
  * On show compose page, 
@@ -481,6 +506,8 @@ function compose() {
 	$('#message-compose').show();
 
 	$('.to-holder').html('');
+	$('.to-holder-shrink').html('');
+	$('.to-holder-shrink').hide();
 	$('#compose-subject').val('');
 	$('#compose-content').val('');
 	$('#compose-content').html('');
@@ -497,7 +524,9 @@ function compose() {
 			replace('[NAME]', window.contactList[i].name));
 		
 	}
-
+	
+	$('#compose-content').val('').trigger('autosize.resize');
+	
 	//on typing in To field
 	$('.contact-pick').click(function() {
 		var id 		= $(this).attr('id');
@@ -567,6 +596,8 @@ function composeWith(data, type) {
 	$('.message-elem').hide();
 	$('#message-compose').show();
 	$('.to-holder').html('');
+	$('.to-holder-shrink').html('');
+	$('.to-holder-shrink').hide();
 	$('#compose-contact').val('');
 	$('#compose-contact').prev().html('');
 	$('.warning-holder').html('');
@@ -646,13 +677,30 @@ function composeWith(data, type) {
 				for(x in contactList) {
 					
 					if(res[i]['b:m_Receiver']['c:PortalAccess']['c:LoginId'] == contactList[x].data['b:PortalAccess']['b:LoginId']) {
-						$('.to-holder').append(TO_COMPOSE.
-				    		replace('[ID]', x).
-				    		replace('[NAME]', contactList[x].name)
-				    	);
+						
+				    	if(i < 2) {
+							$('.to-holder').append(TO_COMPOSE.
+					    		replace('[ID]', x).
+					    		replace('[NAME]', window.contactList[x].name)
+					    	);		
+						} else {
+							
+							$('.to-holder-shrink').append(TO_COMPOSE.
+					    		replace('[ID]', x).
+					    		replace('[NAME]', window.contactList[x].name)
+					    	);		
+						}
 					}	
 				}
 			}
+
+			$('.to-holder').append(
+				'<div id="toggle-shrink" style="float: left;margin-right: 7px;" class="alert alert-info" ><strong>more ...</strong></div>'
+			);
+			$('#toggle-shrink').click(function() {
+				$('.to-holder-shrink').toggle();
+				console.log('click')
+			});
 
 		} else {
 			for(x in contactList) {
@@ -723,6 +771,8 @@ function composeWith(data, type) {
 	var guid = data['b:Label']['b:MessageGUID'];
 	//and put it sa hidden input 
 	$('#detail-guid').val(guid);
+	
+	SoftKeyboard.show();
 
 	//on click send button
 	processSend(guid);
@@ -1158,6 +1208,8 @@ function backEvent() {
 	//hide keyboard
 	document.activeElement.blur();
    	$("input").blur();
+   	
+   	//SoftKeyboard.hide();
 
 	//get the login user
 	var loginUser 	= window.user.get();
@@ -1188,7 +1240,17 @@ function backEvent() {
 		
 		//get list of recipients
 		$('.to-holder div').each(function() {
-			recipients.push(window.contactList[this.id]);
+			
+			if(this.id !== 'toggle-shrink') {
+				recipients.push(window.contactList[this.id]);
+			}
+		});
+
+		$('.to-holder-shrink div').each(function() {
+			
+			if(this.id !== 'toggle-shrink') {
+				recipients.push(window.contactList[this.id]);
+			}
 		});
 
 		
@@ -1478,14 +1540,17 @@ document.addEventListener('deviceready', function() {
   	
   	window.addEventListener('native.showkeyboard', function(e) {
 		window.keyboard = true;
+		/*var keyboard = e.keyboardHeight;
+		var height = $('#message-compose').css('height');
+		var newHeight = parseInt(height) + keyboard;
+		//$('#message-compose').css('height', newHeight+'px');
+		window.messageCompose.refresh();
+		$('#compose-content').val(keyboard+' + '+height+' = '+newHeight);*/
+		//$('#message-compose').slimScroll({height: newHeight+'px'});
+		//setTimeout(function() {
+		//	$('#message-compose').scrollTo(0, newHeight, {queue:true});
+		//}, 1000);
 		
-		/*var height = $('#message-compose').css('height');
-		height = parseInt(height) + e.keyboardHeight;
-		//$('#message-compose').css('height', height+'px');
-		$('#message-compose').scrollTop(height);
-		var s = JSON.stringify(e);
-		alert(s);*/
-
 	});
 
 	window.addEventListener('native.hidekeyboard', function(e) {
@@ -1498,6 +1563,8 @@ document.addEventListener('deviceready', function() {
 		$(function() {
 		    FastClick.attach(document.body);
 		});
+		
+		$('#compose-content').autosize();
 
 		//do the responsive font size
 		$('body').flowtype({

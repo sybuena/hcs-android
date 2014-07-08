@@ -31,9 +31,7 @@ function swipeEvent(event, direction, distance, duration, fingerCount){
        		getDetail(guid, unread, type);
        	}, 200);
     } 
-
-    
-        
+      
 }
 function tapEvent(event, target) {
 
@@ -103,9 +101,12 @@ function holdStatus(event, target) {
 	        		window.unreadInbox = parseInt(window.unreadInbox) - 1;
 					displayCounter(true);
 	        	}    
-	           
+	        	var type = $('ul.nav-stacked li.active a.left-navigation').attr('id');
+	           	removeToLocal(window.tapSelected, type);
+
 				var deleteMessage = setTimeout(function() {
 					var type = $('ul.nav-stacked li.active a.left-navigation').attr('id');
+					
 					window.messages.delete(window.tapSelected, type, true);
 					clearInterval(deleteMessage);
 				}, 500);
@@ -135,7 +136,7 @@ function swipeStatusEvent(event, phase, direction, distance, fingers) {
         	$('#delete-undo').hide();
 			$('.delete-wait').hide(200);
 			$('#delete-undo').css('z-index', '0');	
-			
+			removeToLocal(window.tapSelected, type);
 			setTimeout(function() {
 				
 				window.messages.delete(window.tapSelected, type, true);
@@ -324,9 +325,12 @@ function buildListing() {
 			var end 			= window.startCount;
 			window.startCount 	= window.startCount + 10;
 			
-			window.messages.pullDown(window.messageList[type], type, window.startCount, end, false);	
-	        
-	        this.refresh()        
+			//if(window.messageList[type].length > window.startCount) {
+			
+				//$('.pullUp').show();
+				//window.messages.pullDown(window.messageList[type], type, window.startCount, end, false);	
+        		//this.refresh();        
+        	//}
 		}   
 
 		//prepare for refresh 
@@ -337,11 +341,31 @@ function buildListing() {
 	});
 
 	window.iscroll.on('scrollEnd', function(e) {
+		
+		
+		/*if($('.pullUp').css('display') == 'block') {
+			var type 			= $('ul.nav-stacked li.active a.left-navigation').attr('id');
+			var end 			= window.startCount;
+			window.startCount 	= window.startCount + 10;
+			
+			console.log(window.startCount+' == '+window.messageList[type].length)
+			
+			window.messages.pullDown(window.messageList[type], type, window.startCount, end, false);	
+        	$('.pullUp').hide();
+        	this.refresh();        	
+		}*/
+
 		//pull to refresh
 		if($('#message-list').attr('isRefresh') == 'true') {
-			NProgress.start();
-			$('#message-list').attr('isRefresh', 'false');
-			window.messages.checkInbox('Inbox');
+			var progress = $('#nprogress').css('display');
+			//prevent double refresh
+			if(typeof progress === 'undefined') {
+				NProgress.start();
+				
+				$('#message-list').attr('isRefresh', 'false');
+				//setTimeout(function() {NProgress.done();}, 100000);
+				window.messages.checkInbox('Inbox');
+			}
 		}
 		
 	});			
@@ -365,13 +389,13 @@ function rgb2hex(rgb) {
 
 function showNotification(text, id) {
 
-	/*window.plugin.notification.local.add({ 
+	window.plugin.notification.local.add({ 
 		id 			: id, 						//unique id of the notification
 		message 	: '"'+text+'"',				//the message that is displayed
 		sound 		: 'TYPE_NOTIFICATION', 		//a sound to be played
 		title 		: 'New message received', 	//the title of the message
 		autoCancel 	: true						//Setting this flag and the notification is automatically canceled when the user clicks it
-	});*/
+	});
 }
 
 function removeNotification(ID) {
@@ -379,7 +403,6 @@ function removeNotification(ID) {
 	    alert('notification has been remove - '+ID);
 	});*/
 }
-
 
 /**
  * Helper function to make first char of

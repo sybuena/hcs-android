@@ -71,9 +71,11 @@ Messages.prototype = {
 	    	this.load(type, start, end);
 		//else there is temporary saved data
 		} else { 
-
-			//just show the listing
-			this.displayMessage(window.messageList[type], type, start, end, 1);
+			setTimeout(function() {
+				//just show the listing
+				window.messages.displayMessage(window.messageList[type], type, start, end, 1);
+			}, 200);
+			
 		}
 
 		//this will only work if no ajax call happen
@@ -319,8 +321,10 @@ Messages.prototype = {
 
          		//only show if current page is equal with the request type
          		if(page == type) {
-         			//now display it
-	            	window.messages.displayMessage(raw, type, start, end, 1);	
+         			setTimeout(function() {
+         				//now display it
+	            		window.messages.displayMessage(raw, type, start, end, 1);	
+         			}, 200)
          		}
 	            
 			});    
@@ -454,11 +458,22 @@ Messages.prototype = {
  			}
  			
  			$(this).attr('isClick', 'true');
+			//$('html, body').scrollTop( $(document).height() - $(window).height() );			
  			
  			compose();
+ 			
+			//$('#compose-content').focus();
+			/*$('#compose-content')[0].setSelectionRange(0,0);
+			$('#compose-content').focus();
+			$('#compose-content').click(function(e){ $(this).focus(); });
+
+	        $('#compose-content').click(function(e) {
+	            $('#compose-content').trigger('click');
+	        });*/
 
  			window.messages.replyAll(data, 'reply');
- 			
+			//SoftKeyboard.show();
+ 		
  			return false;
  		});
 
@@ -535,7 +550,8 @@ Messages.prototype = {
 		var ids 		= [];
 		var lister 		= 0;
 		var countList 	= 0;
-
+		start 			= messageList.length;
+		
 		if(messageList == null) {
 			var ids = [];
 			$("#message-list").html(EMPTY);
@@ -695,6 +711,158 @@ Messages.prototype = {
 			window.iscroll.refresh();
 	  		window.iscroll.scrollTo(0, 0);
 		} 
+
+    	setTimeout(function() {
+    		if(start < messageList.length){
+	    	//	window.messages.displayDelay(messageList, type, start)
+	    	}	
+    	}, 200);
+    	
+	},
+	displayDelay : function(messageList, type, start) {
+		var row 		= MESSAGE_ROW;
+		var currentGUID = '';
+		var list 		= '';
+		var ids 		= [];
+
+		for(i in messageList) {
+			if(i < start) {
+				continue;
+			}
+			console.log(i);
+			var inList = false;
+
+			/* -------------------------------- 
+				  STEP 1: CHECK FOR DUPLICATE
+				   GUID 
+			   ------------------------------- */
+
+			$('#message-list .go-detail').each(function() {
+				var id = $(this).attr('id');
+				
+				//prevent duplicate GUID to the listing	
+				if(id == messageList[i]['b:MessageGUID']) {
+					inList = true;
+				}
+				
+			});
+
+			//if in listing, then skip
+			if(inList) {
+				continue;
+			}
+
+			if(messageList[i] !== null) {
+				//check if 
+				//use unread HTML template if only in INBOX
+				if(type == 'Inbox') {
+					/* -------------------------------- 
+							STEP 2: CHECK IF MESSAGE
+							IS UNREAD OR READ 
+	    			   ------------------------------- */
+					//check if message is unread
+					if(messageList[i]['b:MessageRead'] == 'false') {
+						//HTML template for unread messages
+						row = MESSAGE_ROW_1;
+					} else {
+						row = MESSAGE_ROW;
+					}
+				}
+				
+				/* -------------------------------- 
+						STEP 3: BUILD DOM 
+    			   ------------------------------- */
+
+				//for important message
+				var star 		= 'fa-exclamations';
+				var toUser 		= '';
+				var fromName 	= '';
+				var subject 	= messageList[i]['b:Subject'];
+				var fromName 	= messageList[i]['b:Sender']['c:Name']['d:m_firstName']+' '+messageList[i]['b:Sender']['c:Name']['d:m_lastName']
+				var localDate 	= _local.date(messageList[i]['b:DateSent']['c:m_When']);
+				
+				//dont show datetime if in Draft and Outbox listing
+				if(type == 'Draft' || type == 'Outbox') {
+					date = '';
+				} else {
+			  		//calculate date past
+			  		//date = moment(localDate).format('MMM D, h:mm');
+			  		date = moment(localDate).fromNow();
+			  		//date = jQuery.format.prettyDate(localDate);
+			  	}
+
+				//prevent error on Priority
+				if(typeof messageList[i]['b:Priority'] !== 'undefined'){
+					if(typeof messageList[i]['b:Priority']['m_Value'] !== 'undefined') {
+						if(messageList[i]['b:Priority']['m_Value']['_'] == 'High') {
+							var star = 'fa-exclamation';
+						}
+					}
+				}
+				
+				if(subject.length > 20) {
+					//subject = subject.substr(0,20)+'..';	
+				}
+
+				if(typeof messageList[i]['b:Recipients'] == 'object') {
+					//if has mutiple recipient
+					if(typeof messageList[i]['b:Recipients']['b:Recipient'][0] !== 'undefined') {
+						//loop to get all recipient
+						for(x in messageList[i]['b:Recipients']['b:Recipient']) {
+							//and make HTML format
+							toName = messageList[i]['b:Recipients']['b:Recipient'][x]['b:m_Receiver']['c:Name']['d:m_firstName']+' '+messageList[i]['b:Recipients']['b:Recipient'][x]['b:m_Receiver']['c:Name']['d:m_lastName'];	
+							toUser += ' <span class="gray m-l-25">'+toName+'</span> ...';
+							break;
+						}
+					//otherwise if only one recipient	
+					} else {
+						//just do HTML format
+						toName = messageList[i]['b:Recipients']['b:Recipient']['b:m_Receiver']['c:Name']['d:m_firstName']+' '+messageList[i]['b:Recipients']['b:Recipient']['b:m_Receiver']['c:Name']['d:m_lastName'];	
+						toUser += ' <span class="gray m-l-25">'+toName+'</span><br />';
+					}
+				}
+				
+				if(subject.length == 0) {
+					subject = 'Empty subject';
+				}
+				
+				if(fromName.length == 0) {
+					fromName = 'Empty';
+				}
+
+				if(toUser.length == 0) {
+					toUser = 'Empty';
+				}
+
+				/* -------------------------------- 
+						STEP 4: APPEND THE DOM 
+    			   ------------------------------- */
+
+				//this guys will append everything he gets from loop 
+				//and show it to the message list
+				$(row.
+					replace('[MESSAGE_ID]',		messageList[i]['b:MessageGUID']). 	
+					replace('[MESSAGE_ID2]',	messageList[i]['b:MessageGUID']). 	
+					replace('[DATE]', 			date).								
+					replace('[SUBJECT]', 		subject).							
+					replace('[IMPORTANT]', 		star).								
+					replace('[IMPORTANT2]', 	star).								
+					replace('[FROM_NAME]', 		fromName).							
+					replace('[TO_NAME]', 		toUser)
+				).swipe({
+					triggerOnTouchEnd 	: true,
+					triggerOnTouchLeave : true,
+					allowPageScroll 	: 'vertical',
+					tap 				: tapEvent,
+					swipeStatus 		: swipeStatusEvent,
+					threshold 			: 0,
+					swipe 				: swipeEvent,
+				//on tap hold event	
+				}).on('taphold', holdStatus
+				).appendTo('#message-list');	
+
+			}
+		}
 	},
 	pullDown : function(messageList,type, start, end, fromDelete) {
 		
@@ -722,7 +890,6 @@ Messages.prototype = {
 
 			return false;
 		}
-
 		for(i = end; i < start; i++) {	
 			var inList = false;
 
@@ -853,7 +1020,8 @@ Messages.prototype = {
 					swipe 				: swipeEvent,
 				//on tap hold event	
 				}).on('taphold', holdStatus
-				).appendTo('#message-list');									
+				).appendTo('#message-list');	
+
 			}
 		}
 	}, 
@@ -1119,12 +1287,11 @@ Messages.prototype = {
 			           '</hsi:PortalAccess>'+
 		           '</hsim:m_Receiver>'+
 	           	'</hsim:Recipient>';
-			}
-
-			if(guid == 0) {
+			} 
+			//if(guid == 0) {
 				var xml =
 		       		['<?xml version="1.0" encoding="UTF-8"?>',
-		               '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://schemas.microsoft.com/2003/10/Serialization/" xmlns:heal="http://schemas.datacontract.org/2004/07/HealthCareAssistant" xmlns:hsim="http://schemas.datacontract.org/2004/07/HSIMessageExchange" xmlns:hsi="http://schemas.datacontract.org/2004/07/HSIAccess">',
+		               '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://schemas.microsoft.com/2003/10/Serialization/" xmlns:heal="http://schemas.datacontract.org/2004/07/HealthCareAssistant.Core" xmlns:hsim="http://schemas.datacontract.org/2004/07/HSIMessageExchange.Core" xmlns:arr="http://schemas.microsoft.com/2003/10/Serialization/Arrays" xmlns:hsi="http://schemas.datacontract.org/2004/07/HSIAccess.Core">',
 		               '<soapenv:Header/>',
 		                   '<soapenv:Body>',
 		                       '<Draft>',
@@ -1182,7 +1349,7 @@ Messages.prototype = {
 		                       '</Draft>',
 		                   '</soapenv:Body>',
 		               '</soapenv:Envelope>'];
-			} else {
+			/*} else {
 				var xml =
 		       		['<?xml version="1.0" encoding="UTF-8"?>',
 		               '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://schemas.microsoft.com/2003/10/Serialization/" xmlns:heal="http://schemas.datacontract.org/2004/07/HealthCareAssistant" xmlns:hsim="http://schemas.datacontract.org/2004/07/HSIMessageExchange" xmlns:hsi="http://schemas.datacontract.org/2004/07/HSIAccess">',
@@ -1243,8 +1410,8 @@ Messages.prototype = {
 		                       '</Draft>',
 		                   '</soapenv:Body>',
 		               '</soapenv:Envelope>'];
-			}
-
+			}*/
+			
 			_SOAP.post('Draft', xml, function(soapResponse) { 
 				var results = soapResponse.toString();
 	           	var json 	= $.xml2json(results);
@@ -1258,7 +1425,7 @@ Messages.prototype = {
 	           	$('#process-draft').html('Save');
 	           	$('#process-draft').removeAttr('disabled');
 	           	$('#test-pop').popup('close');
-
+	           	
 	           	//if message sent
          		if(data['DraftResponse']['DraftResult']['a:HasError'] == 'false') {
 
@@ -1362,10 +1529,11 @@ Messages.prototype = {
         }
 
 		$('#compose-subject').val('FW: '+ messageSubject);
-		$('#compose-content').val(messageBody);
-		$('#compose-content').focus();
-		$('#compose-content')[0].setSelectionRange(0,0);
-
+		$('#compose-content').val(messageBody).trigger('autosize.resize');
+		
+		$('.ui-filterable input').val('');
+		$('.ui-filterable input').focus();
+		SoftKeyboard.show();
 		//on click send
 		$('#process-send').unbind().click(function() {
 
@@ -1513,14 +1681,24 @@ Messages.prototype = {
 		if(action == 'replyAll') {
 			//if more than 1 recipients
 			if(typeof data['b:Label']['b:Recipients']['b:Recipient'] === 'object' && typeof data['b:Label']['b:Recipients']['b:Recipient'][0] !== 'undefined') {
+				
 				for(i in data['b:Label']['b:Recipients']['b:Recipient']) {
 					for(x in window.contactList) {
 						//if found
 						if(data['b:Label']['b:Recipients']['b:Recipient'][i]['b:m_Receiver']['c:PortalAccess']['c:LoginId'] == window.contactList[x].data['b:PortalAccess']['b:LoginId']) {
-							$('.to-holder').append(TO_COMPOSE.
-					    		replace('[ID]', x).
-					    		replace('[NAME]', window.contactList[x].name)
-					    	);		
+							
+							if(i < 2) {
+								$('.to-holder').append(TO_COMPOSE.
+						    		replace('[ID]', x).
+						    		replace('[NAME]', window.contactList[x].name)
+						    	);		
+							} else {
+								
+								$('.to-holder-shrink').append(TO_COMPOSE.
+						    		replace('[ID]', x).
+						    		replace('[NAME]', window.contactList[x].name)
+						    	);		
+							}
 
 							ToList += window.contactList[x].name+'; ';
 						}
@@ -1531,6 +1709,13 @@ Messages.prototype = {
 						}
 					}
 				}
+				$('.to-holder').append(
+					'<div id="toggle-shrink" style="float: left;margin-right: 7px;" class="alert alert-info" ><strong>more ...</strong></div>'
+				);
+				$('#toggle-shrink').click(function() {
+					$('.to-holder-shrink').toggle();
+					
+				});
 			//else only 1 recipient
 			} else {
 				for(x in window.contactList) {
@@ -1559,11 +1744,22 @@ Messages.prototype = {
 				for(x in window.contactList) {
 					//if found in contact list
 					if(data['b:Label']['b:Sender']['c:PortalAccess']['c:LoginId'] == window.contactList[x].data['b:PortalAccess']['b:LoginId']) {
+						var count = 0;
+						$('.to-holder div').each(function() {
+							count++;
+						});
 						
-						$('.to-holder').append(TO_COMPOSE.
-				    		replace('[ID]', x).
-				    		replace('[NAME]', window.contactList[x].name)
-				    	);
+						if(count < 3) {
+							$('.to-holder').append(TO_COMPOSE.
+					    		replace('[ID]', x).
+					    		replace('[NAME]', window.contactList[x].name)
+					    	);
+						} else {
+							$('.to-holder-shrink').append(TO_COMPOSE.
+					    		replace('[ID]', x).
+					    		replace('[NAME]', window.contactList[x].name)
+					    	)	
+						}
 					}
 				}
 			}
@@ -1599,10 +1795,12 @@ Messages.prototype = {
         }
 
 		$('#compose-subject').val('Re: '+ messageSubject);
-		$('#compose-content').val(messageBody);
-		$('#compose-content').focus();
+		$('#compose-content').val(messageBody).trigger('autosize.resize');
+		//$('#compose-content').focus();
 		$('#compose-content')[0].setSelectionRange(0,0);
 		
+		SoftKeyboard.show();
+
 		//on click compose
 		$('#process-send').unbind().click(function() {
 			
@@ -1630,7 +1828,16 @@ Messages.prototype = {
 				//get list of recipients
 				$('.to-holder div').each(function() {
 					
-					recipients.push(window.contactList[this.id]);
+					if(this.id !== 'toggle-shrink') {
+						recipients.push(window.contactList[this.id]);
+					}
+				});
+
+				$('.to-holder-shrink div').each(function() {
+					
+					if(this.id !== 'toggle-shrink') {
+						recipients.push(window.contactList[this.id]);
+					}
 				});
 
 				//if no recipients
@@ -1648,6 +1855,7 @@ Messages.prototype = {
 				var list = '';
 				
 				for(i in recipients) {
+					
 					list += 
 					'<hsim:Recipient>'+
 			           '<hsim:m_Receiver>'+
@@ -1668,6 +1876,7 @@ Messages.prototype = {
 				           '</hsi:PortalAccess>'+
 			           '</hsim:m_Receiver>'+
 		           	'</hsim:Recipient>';
+		           
 				}
 
 				var xml = 
@@ -1817,7 +2026,7 @@ Messages.prototype = {
          		}
          		
          		_string.lock(newData, type);
-         		_string.lock(newData, 'Deleted');
+         		_string.lock(data2, 'Deleted');
          		
 	           	var currentPage = $('.current-page').attr('id');
 
@@ -2055,6 +2264,8 @@ Messages.prototype = {
 
          		//if no new message
 				if(typeof data === 'undefined') {
+					//get from local storage
+					window.messageList['Inbox'] = _string.unlock('Inbox');
 
 					window.unreadInbox = 0;
 					displayCounter(true);

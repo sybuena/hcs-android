@@ -885,7 +885,8 @@ a.message-detail:hover {color:black;}
 
 #message-compose {
     
-    padding: 30px 5px 15px 5px;
+    padding: 10px 5px 15px 5px;
+    bottom: 0;
 }
 .loading-contacts {
     padding: 10px;
@@ -1643,17 +1644,29 @@ a.button-red:hover {color: white}
 }
 #left-delete {
     width: 70%;
-    height: 60%;
-    border-right: 3px white solid;
-    margin-top: 5%;
+    height: 100%;
+    
+    display: table;
+    padding-left: 35px;
 }
 #left-delete h4 { 
-    color:white;
-    margin-left: 20px;
-    margin-top: 6%;
+    color: white;
     font-size: 1.7em;
+    margin: 0;
+    display: table-cell;
+    vertical-align: middle;
 }
-
+#left-delete div {
+    height: 68%;
+    border-right: 3px white solid;
+    margin: auto;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    width: 40%;
+}
 
 
 
